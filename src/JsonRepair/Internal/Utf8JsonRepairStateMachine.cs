@@ -47,7 +47,8 @@ internal ref struct Utf8JsonRepairStateMachine
                 if (inString) {
                     FlushPendingComma();
                     if (b == currentQuote && !IsEscaped(_input, index)) {
-                        WriteByte((byte)'"');
+                        byte outQuote = (currentQuote == (byte)'\'' && _options.NormalizeQuotes) ? (byte)'"' : currentQuote;
+                        WriteByte(outQuote);
                         inString = false;
                         currentQuote = 0;
                         expectedValue = false;
@@ -62,7 +63,7 @@ internal ref struct Utf8JsonRepairStateMachine
                             default: WriteHexEscape(b); break;
                         }
                     }
-                    else if (b == (byte)'"' && currentQuote == (byte)'\'') {
+                    else if (b == (byte)'"' && currentQuote == (byte)'\'' && _options.NormalizeQuotes) {
                         WriteString("\\\"");
                     }
                     else {
@@ -109,7 +110,8 @@ internal ref struct Utf8JsonRepairStateMachine
                     FlushPendingComma();
                     inString = true;
                     currentQuote = b;
-                    WriteByte((byte)'"');
+                    byte outQuote = (b == (byte)'\'' && _options.NormalizeQuotes) ? (byte)'"' : b;
+                    WriteByte(outQuote);
                     index++;
                     continue;
                 }

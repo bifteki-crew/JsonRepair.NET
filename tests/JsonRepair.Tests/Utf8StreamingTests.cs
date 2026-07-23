@@ -45,6 +45,22 @@ public class Utf8StreamingTests
     }
 
     [Fact]
+    public void Repair_Utf8Span_ShouldRespectNormalizeQuotesOption()
+    {
+        // Arrange: NormalizeQuotes = false preserves single quotes
+        var options = new JsonRepairOptions { NormalizeQuotes = false };
+        byte[] malformedUtf8 = Encoding.UTF8.GetBytes("{ 'item': 'Bifteki' }");
+        var writer = new ArrayBufferWriter<byte>();
+
+        // Act
+        JsonRepairEngine.Repair(malformedUtf8.AsSpan(), writer, options);
+
+        // Assert
+        string result = Encoding.UTF8.GetString(writer.WrittenSpan);
+        result.Should().Be("{'item':'Bifteki'}");
+    }
+
+    [Fact]
     public void Repair_Utf8Span_ShouldStripTrailingCommas()
     {
         // Arrange
@@ -121,9 +137,9 @@ public class Utf8StreamingTests
         JsonRepairEngine.Repair(input.AsSpan(), writer);
 
         // Assert
+        string expected = new string('[', 100) + "1" + new string(']', 100);
         string result = Encoding.UTF8.GetString(writer.WrittenSpan);
-        result.Should().StartWith("[[[[[[[[[[");
-        result.Should().EndWith("]]]]]]]]]]");
+        result.Should().Be(expected);
     }
 
     [Fact]
