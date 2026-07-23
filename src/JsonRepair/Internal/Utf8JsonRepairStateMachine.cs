@@ -449,7 +449,7 @@ internal ref struct Utf8JsonRepairStateMachine
         {
             int newCapacity = _buffer.Length * 2;
             byte[] rented = ArrayPool<byte>.Shared.Rent(newCapacity);
-            _buffer.CopyTo(rented);
+            _buffer[.._count].CopyTo(rented);
             if (_rented is not null) {
                 ArrayPool<byte>.Shared.Return(_rented);
             }
