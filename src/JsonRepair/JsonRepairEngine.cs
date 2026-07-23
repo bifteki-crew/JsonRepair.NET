@@ -1,12 +1,16 @@
 using System;
+using System.Buffers;
+using System.IO;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using JsonRepair.Internal;
 
 namespace JsonRepair;
 
 /// <summary>
-/// High-performance JSON repair engine for fixing malformed LLM and legacy JSON strings into valid JSON.
+/// High-performance JSON repair engine for fixing malformed LLM and legacy JSON strings and UTF-8 streams into valid JSON.
 /// </summary>
 public static class JsonRepairEngine
 {
@@ -48,6 +52,59 @@ public static class JsonRepairEngine
         Span<char> stackBuffer = stackalloc char[64];
         var stateMachine = new JsonRepairStateMachine(span, options, stackBuffer);
         return stateMachine.Repair();
+    }
+
+    /// <summary>
+    /// Repairs malformed UTF-8 JSON bytes from a <see cref="ReadOnlySpan{Byte}"/> and writes repaired valid JSON directly to an <see cref="IBufferWriter{Byte}"/>.
+    /// </summary>
+    public static void Repair(ReadOnlySpan<byte> utf8Input, IBufferWriter<byte> writer, JsonRepairOptions? options = null)
+    {
+        if (utf8Input.IsEmpty) {
+            Span<byte> span = writer.GetSpan(2);
+            "{}"u8.CopyTo(span);
+            writer.Advance(2);
+            return;
+        }
+
+        options ??= JsonRepairOptions.Default;
+        Span<byte> stackBuffer = stackalloc byte[64];
+        var stateMachine = new Utf8JsonRepairStateMachine(utf8Input, options, writer, stackBuffer);
+        stateMachine.Repair();
+    }
+
+    /// <summary>
+    /// Repairs malformed UTF-8 JSON bytes from a multi-segment <see cref="ReadOnlySequence{Byte}"/> and writes repaired valid JSON to an <see cref="IBufferWriter{Byte}"/>.
+    /// </summary>
+    public static void Repair(ReadOnlySequence<byte> utf8Input, IBufferWriter<byte> writer, JsonRepairOptions? options = null)
+    {
+        if (utf8Input.IsSingleSegment) {
+            Repair(utf8Input.FirstSpan, writer, options);
+            return;
+        }
+
+        byte[] rented = ArrayPool<byte>.Shared.Rent((int)utf8Input.Length);
+        try {
+            utf8Input.CopyTo(rented);
+            Repair(rented.AsSpan(0, (int)utf8Input.Length), writer, options);
+        }
+        finally {
+            ArrayPool<byte>.Shared.Return(rented);
+        }
+    }
+
+    /// <summary>
+    /// Asynchronously reads malformed UTF-8 JSON from <paramref name="inputStream"/>, repairs it, and writes valid JSON to <paramref name="outputStream"/>.
+    /// </summary>
+    public static async Task RepairAsync(Stream inputStream, Stream outputStream, JsonRepairOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        using var ms = new MemoryStream();
+        await inputStream.CopyToAsync(ms, cancellationToken).ConfigureAwait(false);
+        byte[] inputBytes = ms.ToArray();
+
+        var bufferWriter = new ArrayBufferWriter<byte>(inputBytes.Length + 32);
+        Repair(inputBytes.AsSpan(), bufferWriter, options);
+
+        await outputStream.WriteAsync(bufferWriter.WrittenMemory, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
