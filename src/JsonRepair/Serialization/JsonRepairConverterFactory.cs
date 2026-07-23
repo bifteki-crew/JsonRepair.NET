@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -29,6 +30,7 @@ public sealed class JsonRepairConverterFactory : JsonConverterFactory
 /// <typeparam name="T">Target type to deserialize into.</typeparam>
 public sealed class JsonRepairConverter<T> : JsonConverter<T>
 {
+    private static readonly ConcurrentDictionary<JsonSerializerOptions, JsonSerializerOptions> CleanOptionsCache = new();
     private readonly JsonRepairOptions _repairOptions;
 
     /// <summary>
@@ -91,12 +93,14 @@ public sealed class JsonRepairConverter<T> : JsonConverter<T>
 
     private static JsonSerializerOptions GetCleanOptions(JsonSerializerOptions options)
     {
-        var cleanOptions = new JsonSerializerOptions(options);
-        for (int i = cleanOptions.Converters.Count - 1; i >= 0; i--) {
-            if (cleanOptions.Converters[i] is JsonRepairConverterFactory or JsonRepairConverter<T>) {
-                cleanOptions.Converters.RemoveAt(i);
+        return CleanOptionsCache.GetOrAdd(options, opt => {
+            var cleanOptions = new JsonSerializerOptions(opt);
+            for (int i = cleanOptions.Converters.Count - 1; i >= 0; i--) {
+                if (cleanOptions.Converters[i] is JsonRepairConverterFactory) {
+                    cleanOptions.Converters.RemoveAt(i);
+                }
             }
-        }
-        return cleanOptions;
+            return cleanOptions;
+        });
     }
 }

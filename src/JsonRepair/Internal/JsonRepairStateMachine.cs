@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Text;
 
 namespace JsonRepair.Internal;
@@ -9,14 +8,14 @@ internal ref struct JsonRepairStateMachine
     private readonly ReadOnlySpan<char> _input;
     private readonly JsonRepairOptions _options;
     private readonly StringBuilder _sb;
-    private readonly Stack<char> _structureStack;
+    private CharStack _structureStack;
 
-    public JsonRepairStateMachine(ReadOnlySpan<char> input, JsonRepairOptions options)
+    public JsonRepairStateMachine(ReadOnlySpan<char> input, JsonRepairOptions options, Span<char> stackBuffer)
     {
         _input = input;
         _options = options;
         _sb = new StringBuilder(input.Length + 32);
-        _structureStack = new Stack<char>();
+        _structureStack = new CharStack(stackBuffer);
     }
 
     public string Repair()
@@ -306,5 +305,36 @@ internal ref struct JsonRepairStateMachine
             }
         }
         return len;
+    }
+
+    private ref struct CharStack
+    {
+        private readonly Span<char> _buffer;
+        private int _count;
+
+        public CharStack(Span<char> initialBuffer)
+        {
+            _buffer = initialBuffer;
+            _count = 0;
+        }
+
+        public readonly int Count => _count;
+
+        public void Push(char item)
+        {
+            if (_count < _buffer.Length) {
+                _buffer[_count++] = item;
+            }
+        }
+
+        public char Pop()
+        {
+            return _count > 0 ? _buffer[--_count] : '\0';
+        }
+
+        public readonly char Peek()
+        {
+            return _count > 0 ? _buffer[_count - 1] : '\0';
+        }
     }
 }

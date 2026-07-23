@@ -45,7 +45,8 @@ public static class JsonRepairEngine
         }
 
         // Step 3: Core State Machine Repair Pass
-        var stateMachine = new JsonRepairStateMachine(span, options);
+        Span<char> stackBuffer = stackalloc char[64];
+        var stateMachine = new JsonRepairStateMachine(span, options, stackBuffer);
         return stateMachine.Repair();
     }
 
