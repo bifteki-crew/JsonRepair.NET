@@ -1,0 +1,34 @@
+name: Upstream Release Watcher
+
+on:
+  schedule:
+    # Run every Sunday at midnight
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+jobs:
+  check-upstream-updates:
+    name: Check Upstream Release Updates
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Fetch Latest Release from josdejong/jsonrepair
+        id: fetch_josdejong
+        run: |
+          LATEST_TAG=$(curl -s https://api.github.com/repos/josdejong/jsonrepair/releases/latest | jq -r '.tag_name // "v5.1.0"')
+          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "Latest josdejong/jsonrepair release: $LATEST_TAG"
+
+      - name: Compare with Tracked Version in docs/UPSTREAM.md
+        run: |
+          TRACKED_TAG=$(grep -oP 'josdejong/jsonrepair@\K[v0-9.]+' docs/UPSTREAM.md || echo "v5.1.0")
+          LATEST_TAG="${{ steps.fetch_josdejong.outputs.latest_tag }}"
+          
+          if [ "$TRACKED_TAG" != "$LATEST_TAG" ]; then
+            echo "::notice ::New upstream release detected! Tracked: $TRACKED_TAG, Latest: $LATEST_TAG"
+          else
+            echo "Upstream is fully in sync ($TRACKED_TAG)."
+          fi

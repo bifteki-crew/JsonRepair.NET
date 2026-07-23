@@ -87,10 +87,22 @@ dotnet run --project src/JsonRepair.Cli
 ## 📚 Documentation Package (`docs/`)
 
 - 📄 [arc42-architecture.md](docs/arc42-architecture.md): Standardized 12-section arc42 Software Architecture Document.
+- 📄 [UPSTREAM.md](docs/UPSTREAM.md): Upstream version tracking log & synchronization protocol.
 - 📄 [01-candidate-assessment.md](docs/01-candidate-assessment.md): Candidate discovery & scanning report.
 - 📄 [02-vision-and-architecture.md](docs/02-vision-and-architecture.md): Vision & span state machine design.
 - 📄 [03-tdd-roadmap.md](docs/03-tdd-roadmap.md): TDD test matrix (20+ failure modes).
 - 📄 [04-implementation-roadmap.md](docs/04-implementation-roadmap.md): Phased delivery roadmap.
+
+---
+
+## 🤝 Attribution & Open Source Credits
+
+`JsonRepair.NET` is an independent, native .NET 10 implementation inspired by the algorithms and test cases of the following outstanding open-source projects:
+
+- **[josdejong/jsonrepair](https://github.com/josdejong/jsonrepair)** by [Jos de Jong](https://github.com/josdejong) (Licensed under the **ISC License**).
+- **[mangiucugna/json_repair](https://github.com/mangiucugna/json_repair)** by [Mangiucugna](https://github.com/mangiucugna) (Licensed under the **MIT License**).
+
+We express our gratitude to Jos de Jong and the open-source community for creating the foundational algorithms that make LLM JSON repair possible across developer ecosystems.
 
 ---
 
