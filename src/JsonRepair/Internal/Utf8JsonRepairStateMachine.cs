@@ -35,7 +35,7 @@ internal ref struct Utf8JsonRepairStateMachine
             byte currentQuote = 0;
             bool expectedValue = false;
 
-            // Skip leading noise until first '{' (0x7B) or '[' (0x5B)
+            // Skip leading noise until first JSON token ({, [, ", ', number, or literal)
             int start = FindFirstJsonToken(_input);
             if (start > 0 && start < _input.Length) {
                 index = start;
@@ -217,7 +217,8 @@ internal ref struct Utf8JsonRepairStateMachine
 
             // Auto-close unclosed strings
             if (inString && _options.AutoCloseStructures) {
-                WriteByte((byte)'"');
+                byte outQuote = (currentQuote == (byte)'\'' && _options.NormalizeQuotes) ? (byte)'"' : currentQuote;
+                WriteByte(outQuote);
             }
 
             // Auto-close unclosed objects/arrays

@@ -27,7 +27,7 @@ internal ref struct JsonRepairStateMachine
             char currentQuote = '\0';
             bool expectedValue = false;
 
-            // Skip leading noise until first '{' or '['
+            // Skip leading noise until first JSON token ({, [, ", ', number, or literal)
             int start = FindFirstJsonToken(_input);
             if (start > 0 && start < _input.Length) {
                 index = start;
@@ -38,7 +38,7 @@ internal ref struct JsonRepairStateMachine
 
                 if (inString) {
                     if (c == currentQuote && !IsEscaped(_input, index)) {
-                        _sb.Append('"');
+                        _sb.Append(currentQuote == '\'' && _options.NormalizeQuotes ? '"' : currentQuote);
                         inString = false;
                         currentQuote = '\0';
                         expectedValue = false;
@@ -53,7 +53,7 @@ internal ref struct JsonRepairStateMachine
                             default: _sb.Append($"\\u{(int)c:x4}"); break;
                         }
                     }
-                    else if (c == '"' && currentQuote == '\'') {
+                    else if (c == '"' && currentQuote == '\'' && _options.NormalizeQuotes) {
                         _sb.Append("\\\"");
                     }
                     else {
@@ -78,7 +78,7 @@ internal ref struct JsonRepairStateMachine
                     }
                     inString = true;
                     currentQuote = c;
-                    _sb.Append('"');
+                    _sb.Append(c == '\'' && _options.NormalizeQuotes ? '"' : c);
                     index++;
                     continue;
                 }
@@ -178,7 +178,7 @@ internal ref struct JsonRepairStateMachine
 
             // Auto-close unclosed strings
             if (inString && _options.AutoCloseStructures) {
-                _sb.Append('"');
+                _sb.Append(currentQuote == '\'' && _options.NormalizeQuotes ? '"' : currentQuote);
             }
 
             // Auto-close unclosed objects/arrays
