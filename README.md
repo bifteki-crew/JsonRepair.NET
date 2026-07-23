@@ -1,6 +1,6 @@
 # 🥩 JsonRepair.NET — Powered by Bifteki Crew 🔥
 
-[![Build & Test](https://github.com/antigravity/dotnet-library-port/actions/workflows/ci.yml/badge.svg)](https://github.com/antigravity/dotnet-library-port/actions)
+[![Build & Test](https://github.com/bifteki-crew/JsonRepair.NET/actions/workflows/ci.yml/badge.svg)](https://github.com/bifteki-crew/JsonRepair.NET/actions)
 [![Framework](https://img.shields.io/badge/.NET-10.0-purple.svg)](https://dotnet.microsoft.com/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Bifteki Crew](https://img.shields.io/badge/Bifteki%20Crew-Approved%20🥩-orange.svg)](#)
@@ -17,7 +17,7 @@ LLMs (OpenAI, DeepSeek, Anthropic, Ollama) frequently produce "burnt" or broken 
 - ❌ **Markdown Fences**: ` ```json { ... } ``` `
 - ❌ **Single Quotes**: `{'user': 'Bifteki Chef'}`
 - ❌ **Unquoted Keys**: `{name: "Alice"}`
-- ❌ **Python / JS Literals**: `None` $\rightarrow$ `null`, `True` $\rightarrow$ `true`, `undefined` $\rightarrow$ `null`
+- ❌ **Python / JS Literals**: `None` → `null`, `True` → `true`, `undefined` → `null`
 - ❌ **Trailing Commas**: `[1, 2, 3,]`
 - ❌ **Unclosed Truncated JSON**: `{"items": [1, 2`
 
@@ -33,7 +33,8 @@ dotnet add package JsonRepair
 ```
 
 ### 2. Basic Usage
-```csharp
+
+````csharp
 using JsonRepair;
 
 string malformedLlmJson = """
@@ -59,6 +60,18 @@ if (JsonRepairEngine.TryParse(malformedLlmJson, out JsonDocument? doc))
         Console.WriteLine($"Crew: {doc.RootElement.GetProperty("crew").GetString()}");
     }
 }
+````
+
+### 3. UTF-8 Streaming (`ReadOnlySpan<byte>` / `Stream`)
+
+```csharp
+using System.Buffers;
+using JsonRepair;
+
+// Direct zero-string-allocation UTF-8 byte span repair
+byte[] utf8Input = "{item: 'Bifteki', price: 14.99}"u8.ToArray();
+var writer = new ArrayBufferWriter<byte>();
+JsonRepairEngine.Repair(utf8Input.AsSpan(), writer);
 ```
 
 ---
@@ -99,14 +112,13 @@ dotnet run --project src/JsonRepair.Cli
 
 `JsonRepair.NET` is an independent, native .NET 10 implementation inspired by the algorithms and test cases of the following outstanding open-source projects:
 
-- **[josdejong/jsonrepair](https://github.com/josdejong/jsonrepair)** by [Jos de Jong](https://github.com/josdejong) (Licensed under the **ISC License**).
-- **[mangiucugna/json_repair](https://github.com/mangiucugna/json_repair)** by [Mangiucugna](https://github.com/mangiucugna) (Licensed under the **MIT License**).
+- **[josdejong/jsonrepair](https://github.com/josdejong/jsonrepair)** (JavaScript / TypeScript, ISC License) by Jos de Jong.
+- **[mangiucugna/json_repair](https://github.com/mangiucugna/json_repair)** (Python, MIT License) by Mangiucugna.
 
-We express our gratitude to Jos de Jong and the open-source community for creating the foundational algorithms that make LLM JSON repair possible across developer ecosystems.
+We express our gratitude to the original authors for their ground-breaking work in JSON repair algorithms. See [docs/UPSTREAM.md](docs/UPSTREAM.md) for sync tracking.
 
 ---
 
-## 🥩 The Bifteki Crew
-Crafted with high-performance .NET engineering, zero-allocation C# primitives, and pure passion.
+## 📜 License
 
-*Licensed under the [MIT License](LICENSE).*
+Licensed under the **[MIT License](LICENSE)**. Craft & Flame-Grilled by the **Bifteki Crew** 🥩🔥

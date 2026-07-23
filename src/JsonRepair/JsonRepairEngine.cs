@@ -1,12 +1,16 @@
 using System;
+using System.Buffers;
+using System.IO;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using JsonRepair.Internal;
 
 namespace JsonRepair;
 
 /// <summary>
-/// High-performance JSON repair engine for fixing malformed LLM and legacy JSON strings into valid JSON.
+/// High-performance JSON repair engine for fixing malformed LLM and legacy JSON strings and UTF-8 streams into valid JSON.
 /// </summary>
 public static class JsonRepairEngine
 {
@@ -48,6 +52,77 @@ public static class JsonRepairEngine
         Span<char> stackBuffer = stackalloc char[64];
         var stateMachine = new JsonRepairStateMachine(span, options, stackBuffer);
         return stateMachine.Repair();
+    }
+
+    /// <summary>
+    /// Repairs malformed UTF-8 JSON bytes from a <see cref="ReadOnlySpan{Byte}"/> and writes repaired valid JSON directly to an <see cref="IBufferWriter{Byte}"/>.
+    /// </summary>
+    public static void Repair(ReadOnlySpan<byte> utf8Input, IBufferWriter<byte> writer, JsonRepairOptions? options = null)
+    {
+        ArgumentNullException.ThrowIfNull(writer);
+
+        if (utf8Input.IsEmpty) {
+            Span<byte> span = writer.GetSpan(2);
+            "{}"u8.CopyTo(span);
+            writer.Advance(2);
+            return;
+        }
+
+        options ??= JsonRepairOptions.Default;
+        Span<byte> stackBuffer = stackalloc byte[64];
+        var stateMachine = new Utf8JsonRepairStateMachine(utf8Input, options, writer, stackBuffer);
+        stateMachine.Repair();
+    }
+
+    /// <summary>
+    /// Repairs malformed UTF-8 JSON bytes from a multi-segment <see cref="ReadOnlySequence{Byte}"/> and writes repaired valid JSON to an <see cref="IBufferWriter{Byte}"/>.
+    /// </summary>
+    public static void Repair(ReadOnlySequence<byte> utf8Input, IBufferWriter<byte> writer, JsonRepairOptions? options = null)
+    {
+        ArgumentNullException.ThrowIfNull(writer);
+
+        if (utf8Input.IsSingleSegment) {
+            Repair(utf8Input.FirstSpan, writer, options);
+            return;
+        }
+
+        if (utf8Input.Length > int.MaxValue) {
+            throw new ArgumentOutOfRangeException(nameof(utf8Input), "Input sequence length exceeds maximum 2 GB limit.");
+        }
+
+        int length = (int)utf8Input.Length;
+        byte[] rented = ArrayPool<byte>.Shared.Rent(length);
+        try {
+            utf8Input.CopyTo(rented);
+            Repair(rented.AsSpan(0, length), writer, options);
+        }
+        finally {
+            ArrayPool<byte>.Shared.Return(rented);
+        }
+    }
+
+    /// <summary>
+    /// Asynchronously reads malformed UTF-8 JSON from <paramref name="inputStream"/>, repairs it, and writes valid JSON to <paramref name="outputStream"/>.
+    /// </summary>
+    public static async Task RepairAsync(Stream inputStream, Stream outputStream, JsonRepairOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(inputStream);
+        ArgumentNullException.ThrowIfNull(outputStream);
+
+        using var ms = new MemoryStream();
+        await inputStream.CopyToAsync(ms, cancellationToken).ConfigureAwait(false);
+
+        if (ms.Length > int.MaxValue) {
+            throw new ArgumentOutOfRangeException(nameof(inputStream), "Input stream length exceeds maximum 2 GB limit.");
+        }
+
+        int count = checked((int)ms.Length);
+        byte[] buffer = ms.TryGetBuffer(out ArraySegment<byte> segment) ? segment.Array! : ms.ToArray();
+
+        var bufferWriter = new ArrayBufferWriter<byte>(checked(count + 32));
+        Repair(new ReadOnlySpan<byte>(buffer, 0, count), bufferWriter, options);
+
+        await outputStream.WriteAsync(bufferWriter.WrittenMemory, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -150,7 +225,12 @@ public static class JsonRepairEngine
                 while (i + 1 < input.Length && !(input[i] == '*' && input[i + 1] == '/')) {
                     i++;
                 }
-                i++; // Skip closing '/'
+                if (i + 1 < input.Length && input[i] == '*' && input[i + 1] == '/') {
+                    i++; // Skip closing '/'
+                }
+                else {
+                    i = input.Length; // Unterminated block comment at end of input
+                }
                 continue;
             }
 

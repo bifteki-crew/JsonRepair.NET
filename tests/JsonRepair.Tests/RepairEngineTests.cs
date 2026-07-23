@@ -40,4 +40,18 @@ public class RepairEngineTests
         doc.RootElement.GetProperty("role").ValueKind.Should().Be(JsonValueKind.Null);
         doc.RootElement.GetProperty("permissions").GetArrayLength().Should().Be(2);
     }
+
+    [Fact]
+    public void Repair_ShouldRespectNormalizeQuotesOption()
+    {
+        // Arrange
+        var options = new JsonRepairOptions { NormalizeQuotes = false };
+        string malformed = "{'item': 'Bifteki'}";
+
+        // Act
+        string repaired = JsonRepairEngine.Repair(malformed, options);
+
+        // Assert
+        repaired.Should().Be("{'item':'Bifteki'}");
+    }
 }

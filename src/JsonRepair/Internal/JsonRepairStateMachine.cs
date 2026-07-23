@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Text;
 
 namespace JsonRepair.Internal;
@@ -20,175 +21,180 @@ internal ref struct JsonRepairStateMachine
 
     public string Repair()
     {
-        int index = 0;
-        bool inString = false;
-        char currentQuote = '\0';
-        bool expectedValue = false;
+        try {
+            int index = 0;
+            bool inString = false;
+            char currentQuote = '\0';
+            bool expectedValue = false;
 
-        // Skip leading noise until first '{' or '['
-        int start = FindFirstJsonToken(_input);
-        if (start > 0 && start < _input.Length) {
-            index = start;
-        }
+            // Skip leading noise until first JSON token ({, [, ", ', number, or literal)
+            int start = FindFirstJsonToken(_input);
+            if (start > 0 && start < _input.Length) {
+                index = start;
+            }
 
-        while (index < _input.Length) {
-            char c = _input[index];
+            while (index < _input.Length) {
+                char c = _input[index];
 
-            if (inString) {
-                if (c == currentQuote && !IsEscaped(_input, index)) {
-                    _sb.Append('"');
-                    inString = false;
-                    currentQuote = '\0';
-                    expectedValue = false;
-                }
-                else if (c < 32) {
-                    switch (c) {
-                        case '\n': _sb.Append("\\n"); break;
-                        case '\r': _sb.Append("\\r"); break;
-                        case '\t': _sb.Append("\\t"); break;
-                        case '\b': _sb.Append("\\b"); break;
-                        case '\f': _sb.Append("\\f"); break;
-                        default: _sb.Append($"\\u{(int)c:x4}"); break;
+                if (inString) {
+                    if (c == currentQuote && !IsEscaped(_input, index)) {
+                        _sb.Append(currentQuote == '\'' && _options.NormalizeQuotes ? '"' : currentQuote);
+                        inString = false;
+                        currentQuote = '\0';
+                        expectedValue = false;
                     }
+                    else if (c < 32) {
+                        switch (c) {
+                            case '\n': _sb.Append("\\n"); break;
+                            case '\r': _sb.Append("\\r"); break;
+                            case '\t': _sb.Append("\\t"); break;
+                            case '\b': _sb.Append("\\b"); break;
+                            case '\f': _sb.Append("\\f"); break;
+                            default: _sb.Append($"\\u{(int)c:x4}"); break;
+                        }
+                    }
+                    else if (c == '"' && currentQuote == '\'' && _options.NormalizeQuotes) {
+                        _sb.Append("\\\"");
+                    }
+                    else {
+                        _sb.Append(c);
+                    }
+                    index++;
+                    continue;
                 }
-                else if (c == '"' && currentQuote == '\'') {
-                    _sb.Append("\\\"");
+
+                if (char.IsWhiteSpace(c)) {
+                    // Collapse consecutive whitespace outside strings to a single space unless after '{', '[', ':', or ','
+                    if (_sb.Length > 0 && !char.IsWhiteSpace(_sb[^1]) && _sb[^1] is not '{' and not '[' and not ':' and not ',') {
+                        _sb.Append(' ');
+                    }
+                    index++;
+                    continue;
                 }
-                else {
+
+                if (c is '"' or '\'') {
+                    if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
+                        EnsureCommaIfMissing();
+                    }
+                    inString = true;
+                    currentQuote = c;
+                    _sb.Append(c == '\'' && _options.NormalizeQuotes ? '"' : c);
+                    index++;
+                    continue;
+                }
+
+                if (c == '{' || c == '[') {
+                    if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
+                        EnsureCommaIfMissing();
+                    }
+                    _structureStack.Push(c);
                     _sb.Append(c);
+                    expectedValue = false;
+                    index++;
+                    continue;
                 }
-                index++;
-                continue;
-            }
 
-            if (char.IsWhiteSpace(c)) {
-                // Collapse consecutive whitespace outside strings to a single space unless after '{', '[', ':', ',' or before '}', ']'
-                if (_sb.Length > 0 && !char.IsWhiteSpace(_sb[^1]) && _sb[^1] is not '{' and not '[' and not ':' and not ',') {
-                    _sb.Append(' ');
-                }
-                index++;
-                continue;
-            }
+                if (c == '}' || c == ']') {
+                    // Strip trailing comma if present
+                    if (_options.StripTrailingCommas) {
+                        TrimTrailingComma(_sb);
+                    }
 
-            if (c is '"' or '\'') {
-                if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
-                    EnsureCommaIfMissing();
-                }
-                inString = true;
-                currentQuote = c;
-                _sb.Append('"');
-                index++;
-                continue;
-            }
+                    if (_structureStack.Count > 0) {
+                        _structureStack.Pop();
+                    }
 
-            if (c == '{' || c == '[') {
-                if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
-                    EnsureCommaIfMissing();
+                    _sb.Append(c);
+                    expectedValue = false;
+                    index++;
+
+                    // Check if we reached the root closing brace
+                    if (_structureStack.Count == 0) {
+                        break;
+                    }
+                    continue;
                 }
-                _structureStack.Push(c);
+
+                if (c == ':') {
+                    _sb.Append(':');
+                    expectedValue = true;
+                    index++;
+                    continue;
+                }
+
+                if (c == ',') {
+                    _sb.Append(',');
+                    expectedValue = false;
+                    index++;
+                    continue;
+                }
+
+                // Check for non-standard literals (None, True, False, undefined, NaN)
+                if (_options.ConvertNonStandardLiterals && TryMatchLiteral(_input, index, out string? repairedLiteral, out int literalLen)) {
+                    _sb.Append(repairedLiteral);
+                    index += literalLen;
+                    expectedValue = false;
+                    continue;
+                }
+
+                // Check for numbers (digits or leading minus)
+                if (char.IsDigit(c) || c == '-') {
+                    if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
+                        EnsureCommaIfMissing();
+                    }
+                    int len = GetNumberLength(_input, index);
+                    ReadOnlySpan<char> numSpan = _input.Slice(index, len);
+                    _sb.Append(numSpan);
+                    expectedValue = false;
+                    index += len;
+                    continue;
+                }
+
+                // Check for unquoted keys or unquoted values
+                if (char.IsLetter(c) || c == '_') {
+                    if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
+                        EnsureCommaIfMissing();
+                    }
+                    int len = GetIdentifierLength(_input, index);
+                    ReadOnlySpan<char> identifier = _input.Slice(index, len);
+
+                    // If inside an object and expecting a key (not after ':')
+                    if (_structureStack.Count > 0 && _structureStack.Peek() == '{' && !expectedValue && _options.QuoteUnquotedKeys) {
+                        _sb.Append('"');
+                        _sb.Append(identifier);
+                        _sb.Append('"');
+                    }
+                    else {
+                        _sb.Append(identifier);
+                    }
+
+                    index += len;
+                    continue;
+                }
+
                 _sb.Append(c);
-                expectedValue = false;
                 index++;
-                continue;
             }
 
-            if (c == '}' || c == ']') {
-                // Strip trailing comma if present
-                if (_options.StripTrailingCommas) {
+            // Auto-close unclosed strings
+            if (inString && _options.AutoCloseStructures) {
+                _sb.Append(currentQuote == '\'' && _options.NormalizeQuotes ? '"' : currentQuote);
+            }
+
+            // Auto-close unclosed objects/arrays
+            if (_options.AutoCloseStructures) {
+                while (_structureStack.Count > 0) {
+                    char open = _structureStack.Pop();
                     TrimTrailingComma(_sb);
+                    _sb.Append(open == '{' ? '}' : ']');
                 }
-
-                if (_structureStack.Count > 0) {
-                    _structureStack.Pop();
-                }
-
-                _sb.Append(c);
-                expectedValue = false;
-                index++;
-
-                // Check if we reached the root closing brace
-                if (_structureStack.Count == 0) {
-                    break;
-                }
-                continue;
             }
 
-            if (c == ':') {
-                _sb.Append(':');
-                expectedValue = true;
-                index++;
-                continue;
-            }
-
-            if (c == ',') {
-                _sb.Append(',');
-                expectedValue = false;
-                index++;
-                continue;
-            }
-
-            // Check for non-standard literals (None, True, False, undefined, NaN)
-            if (_options.ConvertNonStandardLiterals && TryMatchLiteral(_input, index, out string? repairedLiteral, out int literalLen)) {
-                _sb.Append(repairedLiteral);
-                index += literalLen;
-                expectedValue = false;
-                continue;
-            }
-
-            // Check for numbers (digits or leading minus)
-            if (char.IsDigit(c) || c == '-') {
-                if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
-                    EnsureCommaIfMissing();
-                }
-                int len = GetNumberLength(_input, index);
-                ReadOnlySpan<char> numSpan = _input.Slice(index, len);
-                _sb.Append(numSpan);
-                expectedValue = false;
-                index += len;
-                continue;
-            }
-
-            // Check for unquoted keys or unquoted values
-            if (char.IsLetter(c) || c == '_') {
-                if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
-                    EnsureCommaIfMissing();
-                }
-                int len = GetIdentifierLength(_input, index);
-                ReadOnlySpan<char> identifier = _input.Slice(index, len);
-
-                // If inside an object and expecting a key (not after ':')
-                if (_structureStack.Count > 0 && _structureStack.Peek() == '{' && !expectedValue && _options.QuoteUnquotedKeys) {
-                    _sb.Append('"');
-                    _sb.Append(identifier);
-                    _sb.Append('"');
-                }
-                else {
-                    _sb.Append(identifier);
-                }
-
-                index += len;
-                continue;
-            }
-
-            _sb.Append(c);
-            index++;
+            return _sb.ToString();
         }
-
-        // Auto-close unclosed strings
-        if (inString && _options.AutoCloseStructures) {
-            _sb.Append('"');
+        finally {
+            _structureStack.Release();
         }
-
-        // Auto-close unclosed objects/arrays
-        if (_options.AutoCloseStructures) {
-            while (_structureStack.Count > 0) {
-                char open = _structureStack.Pop();
-                TrimTrailingComma(_sb);
-                _sb.Append(open == '{' ? '}' : ']');
-            }
-        }
-
-        return _sb.ToString();
     }
 
     private static int FindFirstJsonToken(ReadOnlySpan<char> span)
@@ -309,12 +315,14 @@ internal ref struct JsonRepairStateMachine
 
     private ref struct CharStack
     {
-        private readonly Span<char> _buffer;
+        private Span<char> _buffer;
+        private char[]? _rented;
         private int _count;
 
         public CharStack(Span<char> initialBuffer)
         {
             _buffer = initialBuffer;
+            _rented = null;
             _count = 0;
         }
 
@@ -322,9 +330,22 @@ internal ref struct JsonRepairStateMachine
 
         public void Push(char item)
         {
-            if (_count < _buffer.Length) {
-                _buffer[_count++] = item;
+            if (_count >= _buffer.Length) {
+                Grow();
             }
+            _buffer[_count++] = item;
+        }
+
+        private void Grow()
+        {
+            int newCapacity = _buffer.Length * 2;
+            char[] rented = ArrayPool<char>.Shared.Rent(newCapacity);
+            _buffer[.._count].CopyTo(rented);
+            if (_rented is not null) {
+                ArrayPool<char>.Shared.Return(_rented);
+            }
+            _rented = rented;
+            _buffer = rented;
         }
 
         public char Pop()
@@ -335,6 +356,14 @@ internal ref struct JsonRepairStateMachine
         public readonly char Peek()
         {
             return _count > 0 ? _buffer[_count - 1] : '\0';
+        }
+
+        public void Release()
+        {
+            if (_rented is not null) {
+                ArrayPool<char>.Shared.Return(_rented);
+                _rented = null;
+            }
         }
     }
 }
