@@ -1,0 +1,12 @@
+## Ignore Visual Studio / .NET build artifacts
+bin/
+obj/
+.vs/
+*.user
+*.userossc
+*.sln.docstates
+BenchmarkDotNet.Artifacts/
+
+## OS generated files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/JsonRepair.Benchmarks/JsonRepair.Benchmarks.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/JsonRepair.Cli/JsonRepair.Cli.csproj" />
+    <Project Path="src/JsonRepair/JsonRepair.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/JsonRepair.Tests/JsonRepair.Tests.csproj" />
+  </Folder>
+</Solution>

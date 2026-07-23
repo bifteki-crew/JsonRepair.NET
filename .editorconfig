@@ -1,0 +1,41 @@
+# top-most EditorConfig file for JsonRepair.NET
+root = true
+
+[*]
+end_of_line = lf
+insert_final_newline = true
+charset = utf-8
+indent_style = space
+indent_size = 4
+
+[*.{cs,csx}]
+# C# Coding Conventions
+csharp_using_directive_placement = outside_namespace:warning
+csharp_style_expression_bodied_methods = when_on_single_line:suggestion
+csharp_style_expression_bodied_constructors = false:suggestion
+csharp_style_expression_bodied_properties = true:suggestion
+csharp_style_expression_bodied_accessors = true:suggestion
+
+# Pattern Matching & Modern C# Options
+csharp_style_pattern_matching_over_as_with_null_check = true:warning
+csharp_style_pattern_matching_over_is_with_cast_check = true:warning
+csharp_style_prefer_switch_expression = true:suggestion
+
+# Nullability & Type Preferences
+csharp_style_var_elsewhere = true:suggestion
+csharp_style_var_for_built_in_types = true:suggestion
+csharp_style_var_when_type_is_apparent = true:suggestion
+
+# Naming Conventions
+dotnet_naming_rule.interface_should_start_with_i.severity = warning
+dotnet_naming_rule.interface_should_start_with_i.symbols = interface
+dotnet_naming_rule.interface_should_start_with_i.style = prefix_i
+
+dotnet_naming_symbols.interface.applicable_kinds = interface
+dotnet_naming_style.prefix_i.required_prefix = I
+
+# Formatting
+csharp_new_line_before_open_brace = methods, properties, types
+csharp_space_after_cast = false
+csharp_space_after_keywords_in_control_flow_statements = true
+csharp_space_before_colon_in_inheritance_clause = true

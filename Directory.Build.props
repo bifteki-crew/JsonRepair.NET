@@ -1,0 +1,25 @@
+<Project>
+  <PropertyGroup>
+    <!-- Target Framework and Language Defaults -->
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>13.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- Roslyn Code Analysis & Linting Defaults -->
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    
+    <!-- Suppress CA1707 (underscores in test names) and CA1305 (locale string formatting) for benchmarks/tests -->
+    <NoWarn>$(NoWarn);CA1707;CA1305</NoWarn>
+
+    <!-- Package Metadata -->
+    <Authors>Antigravity Team</Authors>
+    <Company>Antigravity</Company>
+    <Copyright>Copyright (c) 2026 Antigravity Team</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/antigravity/dotnet-library-port</RepositoryUrl>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,26 @@
+#!/bin/sh
+# Git pre-commit hook for JsonRepair.NET
+# Ensures code formatting and tests pass before committing.
+
+echo "================================================="
+echo " [Git Pre-Commit Hook] Running Code Checks... "
+echo "================================================="
+
+# Step 1: Check code formatting via dotnet format
+echo "--> Checking code formatting with 'dotnet format'..."
+dotnet format --verify-no-changes
+if [ $? -ne 0 ]; then
+    echo "❌ ERROR: Code formatting check failed! Run 'dotnet format' to fix formatting before committing."
+    exit 1
+fi
+
+# Step 2: Run Unit Tests
+echo "--> Running Unit Tests..."
+dotnet test --configuration Release --verbosity quiet
+if [ $? -ne 0 ]; then
+    echo "❌ ERROR: Unit tests failed! Fix failing tests before committing."
+    exit 1
+fi
+
+echo "✓ All pre-commit checks passed successfully!"
+exit 0
