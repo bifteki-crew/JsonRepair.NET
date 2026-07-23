@@ -99,10 +99,12 @@ public static class JsonRepairEngine
     {
         using var ms = new MemoryStream();
         await inputStream.CopyToAsync(ms, cancellationToken).ConfigureAwait(false);
-        byte[] inputBytes = ms.ToArray();
 
-        var bufferWriter = new ArrayBufferWriter<byte>(inputBytes.Length + 32);
-        Repair(inputBytes.AsSpan(), bufferWriter, options);
+        byte[] buffer = ms.TryGetBuffer(out ArraySegment<byte> segment) ? segment.Array! : ms.ToArray();
+        int count = (int)ms.Length;
+
+        var bufferWriter = new ArrayBufferWriter<byte>(count + 32);
+        Repair(new ReadOnlySpan<byte>(buffer, 0, count), bufferWriter, options);
 
         await outputStream.WriteAsync(bufferWriter.WrittenMemory, cancellationToken).ConfigureAwait(false);
     }

@@ -11,6 +11,7 @@ internal ref struct Utf8JsonRepairStateMachine
     private readonly IBufferWriter<byte> _writer;
     private ByteStack _structureStack;
     private byte _lastWrittenByte;
+    private bool _pendingComma;
 
     public Utf8JsonRepairStateMachine(ReadOnlySpan<byte> input, JsonRepairOptions options, IBufferWriter<byte> writer, Span<byte> stackBuffer)
     {
@@ -19,6 +20,7 @@ internal ref struct Utf8JsonRepairStateMachine
         _writer = writer;
         _structureStack = new ByteStack(stackBuffer);
         _lastWrittenByte = 0;
+        _pendingComma = false;
     }
 
     public void Repair()
@@ -38,6 +40,7 @@ internal ref struct Utf8JsonRepairStateMachine
             byte b = _input[index];
 
             if (inString) {
+                FlushPendingComma();
                 if (b == currentQuote && !IsEscaped(_input, index)) {
                     WriteByte((byte)'"');
                     inString = false;
@@ -73,6 +76,7 @@ internal ref struct Utf8JsonRepairStateMachine
                 if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
                     EnsureCommaIfMissing();
                 }
+                FlushPendingComma();
                 inString = true;
                 currentQuote = b;
                 WriteByte((byte)'"');
@@ -84,6 +88,7 @@ internal ref struct Utf8JsonRepairStateMachine
                 if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
                     EnsureCommaIfMissing();
                 }
+                FlushPendingComma();
                 _structureStack.Push(b);
                 WriteByte(b);
                 expectedValue = false;
@@ -92,6 +97,14 @@ internal ref struct Utf8JsonRepairStateMachine
             }
 
             if (b is (byte)'}' or (byte)']') {
+                // If trailing commas should be stripped, discard pending comma
+                if (_options.StripTrailingCommas) {
+                    _pendingComma = false;
+                }
+                else {
+                    FlushPendingComma();
+                }
+
                 if (_structureStack.Count > 0) {
                     _structureStack.Pop();
                 }
@@ -107,6 +120,7 @@ internal ref struct Utf8JsonRepairStateMachine
             }
 
             if (b == (byte)':') {
+                FlushPendingComma();
                 WriteByte((byte)':');
                 expectedValue = true;
                 index++;
@@ -114,7 +128,7 @@ internal ref struct Utf8JsonRepairStateMachine
             }
 
             if (b == (byte)',') {
-                WriteByte((byte)',');
+                _pendingComma = true;
                 expectedValue = false;
                 index++;
                 continue;
@@ -122,6 +136,7 @@ internal ref struct Utf8JsonRepairStateMachine
 
             // Check for non-standard literals (None, True, False, undefined, NaN)
             if (_options.ConvertNonStandardLiterals && TryMatchLiteral(_input, index, out ReadOnlySpan<byte> repairedLiteral, out int literalLen)) {
+                FlushPendingComma();
                 WriteBytes(repairedLiteral);
                 index += literalLen;
                 expectedValue = false;
@@ -133,6 +148,7 @@ internal ref struct Utf8JsonRepairStateMachine
                 if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
                     EnsureCommaIfMissing();
                 }
+                FlushPendingComma();
                 int len = GetNumberLength(_input, index);
                 WriteBytes(_input.Slice(index, len));
                 expectedValue = false;
@@ -145,6 +161,7 @@ internal ref struct Utf8JsonRepairStateMachine
                 if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
                     EnsureCommaIfMissing();
                 }
+                FlushPendingComma();
                 int len = GetIdentifierLength(_input, index);
                 ReadOnlySpan<byte> identifier = _input.Slice(index, len);
 
@@ -161,6 +178,7 @@ internal ref struct Utf8JsonRepairStateMachine
                 continue;
             }
 
+            FlushPendingComma();
             WriteByte(b);
             index++;
         }
@@ -174,6 +192,12 @@ internal ref struct Utf8JsonRepairStateMachine
         if (_options.AutoCloseStructures) {
             while (_structureStack.Count > 0) {
                 byte open = _structureStack.Pop();
+                if (_options.StripTrailingCommas) {
+                    _pendingComma = false;
+                }
+                else {
+                    FlushPendingComma();
+                }
                 WriteByte(open == (byte)'{' ? (byte)'}' : (byte)']');
             }
         }
@@ -191,8 +215,16 @@ internal ref struct Utf8JsonRepairStateMachine
 
     private void EnsureCommaIfMissing()
     {
-        if (_lastWrittenByte is not 0 and not (byte)'{' and not (byte)'[' and not (byte)':' and not (byte)',') {
+        if (!_pendingComma && _lastWrittenByte is not 0 and not (byte)'{' and not (byte)'[' and not (byte)':' and not (byte)',') {
+            _pendingComma = true;
+        }
+    }
+
+    private void FlushPendingComma()
+    {
+        if (_pendingComma) {
             WriteByte((byte)',');
+            _pendingComma = false;
         }
     }
 
