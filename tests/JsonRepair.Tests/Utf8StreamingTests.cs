@@ -75,6 +75,25 @@ public class Utf8StreamingTests
     }
 
     [Fact]
+    public void Repair_Utf8Span_ShouldHandleDeepNestingExceedingStackBuffer()
+    {
+        // Arrange: 100 levels of nested arrays
+        var sb = new StringBuilder();
+        for (int i = 0; i < 100; i++) sb.Append('[');
+        sb.Append('1');
+        byte[] input = Encoding.UTF8.GetBytes(sb.ToString());
+        var writer = new ArrayBufferWriter<byte>();
+
+        // Act
+        JsonRepairEngine.Repair(input.AsSpan(), writer);
+
+        // Assert
+        string result = Encoding.UTF8.GetString(writer.WrittenSpan);
+        result.Should().StartWith("[[[[[[[[[[");
+        result.Should().EndWith("]]]]]]]]]]");
+    }
+
+    [Fact]
     public void Repair_NullWriter_ShouldThrowArgumentNullException()
     {
         byte[] input = "{}"u8.ToArray();

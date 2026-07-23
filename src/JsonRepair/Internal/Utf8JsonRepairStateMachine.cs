@@ -25,201 +25,206 @@ internal ref struct Utf8JsonRepairStateMachine
 
     public void Repair()
     {
-        int index = 0;
-        bool inString = false;
-        byte currentQuote = 0;
-        bool expectedValue = false;
+        try {
+            int index = 0;
+            bool inString = false;
+            byte currentQuote = 0;
+            bool expectedValue = false;
 
-        // Skip leading noise until first '{' (0x7B) or '[' (0x5B)
-        int start = FindFirstJsonToken(_input);
-        if (start > 0 && start < _input.Length) {
-            index = start;
-        }
+            // Skip leading noise until first '{' (0x7B) or '[' (0x5B)
+            int start = FindFirstJsonToken(_input);
+            if (start > 0 && start < _input.Length) {
+                index = start;
+            }
 
-        while (index < _input.Length) {
-            byte b = _input[index];
+            while (index < _input.Length) {
+                byte b = _input[index];
 
-            if (inString) {
-                FlushPendingComma();
-                if (b == currentQuote && !IsEscaped(_input, index)) {
-                    WriteByte((byte)'"');
-                    inString = false;
-                    currentQuote = 0;
-                    expectedValue = false;
+                if (inString) {
+                    FlushPendingComma();
+                    if (b == currentQuote && !IsEscaped(_input, index)) {
+                        WriteByte((byte)'"');
+                        inString = false;
+                        currentQuote = 0;
+                        expectedValue = false;
+                    }
+                    else if (b < 32) {
+                        switch (b) {
+                            case (byte)'\n': WriteString("\\n"); break;
+                            case (byte)'\r': WriteString("\\r"); break;
+                            case (byte)'\t': WriteString("\\t"); break;
+                            case (byte)'\b': WriteString("\\b"); break;
+                            case (byte)'\f': WriteString("\\f"); break;
+                            default: WriteHexEscape(b); break;
+                        }
+                    }
+                    else if (b == (byte)'"' && currentQuote == (byte)'\'') {
+                        WriteString("\\\"");
+                    }
+                    else {
+                        WriteByte(b);
+                    }
+                    index++;
+                    continue;
                 }
-                else if (b < 32) {
-                    switch (b) {
-                        case (byte)'\n': WriteString("\\n"); break;
-                        case (byte)'\r': WriteString("\\r"); break;
-                        case (byte)'\t': WriteString("\\t"); break;
-                        case (byte)'\b': WriteString("\\b"); break;
-                        case (byte)'\f': WriteString("\\f"); break;
-                        default: WriteHexEscape(b); break;
+
+                if (b is (byte)' ' or (byte)'\t' or (byte)'\n' or (byte)'\r') {
+                    index++;
+                    continue;
+                }
+
+                // Strip single-line (//) and multi-line (/* */) comments
+                if (b == (byte)'/' && _options.StripComments) {
+                    byte next = index + 1 < _input.Length ? _input[index + 1] : (byte)0;
+                    if (next == (byte)'/') {
+                        index += 2;
+                        while (index < _input.Length && _input[index] is not (byte)'\n' and not (byte)'\r') {
+                            index++;
+                        }
+                        continue;
+                    }
+                    if (next == (byte)'*') {
+                        index += 2;
+                        while (index + 1 < _input.Length && !(_input[index] == (byte)'*' && _input[index + 1] == (byte)'/')) {
+                            index++;
+                        }
+                        index += 2; // Skip closing */
+                        continue;
                     }
                 }
-                else if (b == (byte)'"' && currentQuote == (byte)'\'') {
-                    WriteString("\\\"");
+
+                if (b is (byte)'"' or (byte)'\'') {
+                    if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
+                        EnsureCommaIfMissing();
+                    }
+                    FlushPendingComma();
+                    inString = true;
+                    currentQuote = b;
+                    WriteByte((byte)'"');
+                    index++;
+                    continue;
                 }
-                else {
+
+                if (b is (byte)'{' or (byte)'[') {
+                    if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
+                        EnsureCommaIfMissing();
+                    }
+                    FlushPendingComma();
+                    _structureStack.Push(b);
                     WriteByte(b);
+                    expectedValue = false;
+                    index++;
+                    continue;
                 }
-                index++;
-                continue;
-            }
 
-            if (b is (byte)' ' or (byte)'\t' or (byte)'\n' or (byte)'\r') {
-                index++;
-                continue;
-            }
+                if (b is (byte)'}' or (byte)']') {
+                    // If trailing commas should be stripped, discard pending comma
+                    if (_options.StripTrailingCommas) {
+                        _pendingComma = false;
+                    }
+                    else {
+                        FlushPendingComma();
+                    }
 
-            // Strip single-line (//) and multi-line (/* */) comments
-            if (b == (byte)'/' && _options.StripComments) {
-                byte next = index + 1 < _input.Length ? _input[index + 1] : (byte)0;
-                if (next == (byte)'/') {
-                    index += 2;
-                    while (index < _input.Length && _input[index] is not (byte)'\n' and not (byte)'\r') {
-                        index++;
+                    if (_structureStack.Count > 0) {
+                        _structureStack.Pop();
+                    }
+
+                    WriteByte(b);
+                    expectedValue = false;
+                    index++;
+
+                    if (_structureStack.Count == 0) {
+                        break;
                     }
                     continue;
                 }
-                if (next == (byte)'*') {
-                    index += 2;
-                    while (index + 1 < _input.Length && !(_input[index] == (byte)'*' && _input[index + 1] == (byte)'/')) {
-                        index++;
-                    }
-                    index += 2; // Skip closing */
+
+                if (b == (byte)':') {
+                    FlushPendingComma();
+                    WriteByte((byte)':');
+                    expectedValue = true;
+                    index++;
                     continue;
                 }
-            }
 
-            if (b is (byte)'"' or (byte)'\'') {
-                if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
-                    EnsureCommaIfMissing();
+                if (b == (byte)',') {
+                    _pendingComma = true;
+                    expectedValue = false;
+                    index++;
+                    continue;
                 }
+
+                // Check for non-standard literals (None, True, False, undefined, NaN)
+                if (_options.ConvertNonStandardLiterals && TryMatchLiteral(_input, index, out ReadOnlySpan<byte> repairedLiteral, out int literalLen)) {
+                    FlushPendingComma();
+                    WriteBytes(repairedLiteral);
+                    index += literalLen;
+                    expectedValue = false;
+                    continue;
+                }
+
+                // Check for numbers
+                if (b is >= (byte)'0' and <= (byte)'9' or (byte)'-') {
+                    if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
+                        EnsureCommaIfMissing();
+                    }
+                    FlushPendingComma();
+                    int len = GetNumberLength(_input, index);
+                    WriteBytes(_input.Slice(index, len));
+                    expectedValue = false;
+                    index += len;
+                    continue;
+                }
+
+                // Check for unquoted keys/identifiers (including non-ASCII UTF-8 bytes >= 0x80)
+                if (b is (>= (byte)'a' and <= (byte)'z') or (>= (byte)'A' and <= (byte)'Z') or (byte)'_' or >= 0x80) {
+                    if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
+                        EnsureCommaIfMissing();
+                    }
+                    FlushPendingComma();
+                    int len = GetIdentifierLength(_input, index);
+                    ReadOnlySpan<byte> identifier = _input.Slice(index, len);
+
+                    if (_structureStack.Count > 0 && _structureStack.Peek() == (byte)'{' && !expectedValue && _options.QuoteUnquotedKeys) {
+                        WriteByte((byte)'"');
+                        WriteBytes(identifier);
+                        WriteByte((byte)'"');
+                    }
+                    else {
+                        WriteBytes(identifier);
+                    }
+
+                    index += len;
+                    continue;
+                }
+
                 FlushPendingComma();
-                inString = true;
-                currentQuote = b;
+                WriteByte(b);
+                index++;
+            }
+
+            // Auto-close unclosed strings
+            if (inString && _options.AutoCloseStructures) {
                 WriteByte((byte)'"');
-                index++;
-                continue;
             }
 
-            if (b is (byte)'{' or (byte)'[') {
-                if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
-                    EnsureCommaIfMissing();
+            // Auto-close unclosed objects/arrays
+            if (_options.AutoCloseStructures) {
+                while (_structureStack.Count > 0) {
+                    byte open = _structureStack.Pop();
+                    if (_options.StripTrailingCommas) {
+                        _pendingComma = false;
+                    }
+                    else {
+                        FlushPendingComma();
+                    }
+                    WriteByte(open == (byte)'{' ? (byte)'}' : (byte)']');
                 }
-                FlushPendingComma();
-                _structureStack.Push(b);
-                WriteByte(b);
-                expectedValue = false;
-                index++;
-                continue;
             }
-
-            if (b is (byte)'}' or (byte)']') {
-                // If trailing commas should be stripped, discard pending comma
-                if (_options.StripTrailingCommas) {
-                    _pendingComma = false;
-                }
-                else {
-                    FlushPendingComma();
-                }
-
-                if (_structureStack.Count > 0) {
-                    _structureStack.Pop();
-                }
-
-                WriteByte(b);
-                expectedValue = false;
-                index++;
-
-                if (_structureStack.Count == 0) {
-                    break;
-                }
-                continue;
-            }
-
-            if (b == (byte)':') {
-                FlushPendingComma();
-                WriteByte((byte)':');
-                expectedValue = true;
-                index++;
-                continue;
-            }
-
-            if (b == (byte)',') {
-                _pendingComma = true;
-                expectedValue = false;
-                index++;
-                continue;
-            }
-
-            // Check for non-standard literals (None, True, False, undefined, NaN)
-            if (_options.ConvertNonStandardLiterals && TryMatchLiteral(_input, index, out ReadOnlySpan<byte> repairedLiteral, out int literalLen)) {
-                FlushPendingComma();
-                WriteBytes(repairedLiteral);
-                index += literalLen;
-                expectedValue = false;
-                continue;
-            }
-
-            // Check for numbers
-            if (b is >= (byte)'0' and <= (byte)'9' or (byte)'-') {
-                if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
-                    EnsureCommaIfMissing();
-                }
-                FlushPendingComma();
-                int len = GetNumberLength(_input, index);
-                WriteBytes(_input.Slice(index, len));
-                expectedValue = false;
-                index += len;
-                continue;
-            }
-
-            // Check for unquoted keys/identifiers (including non-ASCII UTF-8 bytes >= 0x80)
-            if (b is (>= (byte)'a' and <= (byte)'z') or (>= (byte)'A' and <= (byte)'Z') or (byte)'_' or >= 0x80) {
-                if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
-                    EnsureCommaIfMissing();
-                }
-                FlushPendingComma();
-                int len = GetIdentifierLength(_input, index);
-                ReadOnlySpan<byte> identifier = _input.Slice(index, len);
-
-                if (_structureStack.Count > 0 && _structureStack.Peek() == (byte)'{' && !expectedValue && _options.QuoteUnquotedKeys) {
-                    WriteByte((byte)'"');
-                    WriteBytes(identifier);
-                    WriteByte((byte)'"');
-                }
-                else {
-                    WriteBytes(identifier);
-                }
-
-                index += len;
-                continue;
-            }
-
-            FlushPendingComma();
-            WriteByte(b);
-            index++;
         }
-
-        // Auto-close unclosed strings
-        if (inString && _options.AutoCloseStructures) {
-            WriteByte((byte)'"');
-        }
-
-        // Auto-close unclosed objects/arrays
-        if (_options.AutoCloseStructures) {
-            while (_structureStack.Count > 0) {
-                byte open = _structureStack.Pop();
-                if (_options.StripTrailingCommas) {
-                    _pendingComma = false;
-                }
-                else {
-                    FlushPendingComma();
-                }
-                WriteByte(open == (byte)'{' ? (byte)'}' : (byte)']');
-            }
+        finally {
+            _structureStack.Release();
         }
     }
 
@@ -379,12 +384,14 @@ internal ref struct Utf8JsonRepairStateMachine
 
     private ref struct ByteStack
     {
-        private readonly Span<byte> _buffer;
+        private Span<byte> _buffer;
+        private byte[]? _rented;
         private int _count;
 
         public ByteStack(Span<byte> initialBuffer)
         {
             _buffer = initialBuffer;
+            _rented = null;
             _count = 0;
         }
 
@@ -392,9 +399,22 @@ internal ref struct Utf8JsonRepairStateMachine
 
         public void Push(byte item)
         {
-            if (_count < _buffer.Length) {
-                _buffer[_count++] = item;
+            if (_count >= _buffer.Length) {
+                Grow();
             }
+            _buffer[_count++] = item;
+        }
+
+        private void Grow()
+        {
+            int newCapacity = _buffer.Length * 2;
+            byte[] rented = ArrayPool<byte>.Shared.Rent(newCapacity);
+            _buffer.CopyTo(rented);
+            if (_rented is not null) {
+                ArrayPool<byte>.Shared.Return(_rented);
+            }
+            _rented = rented;
+            _buffer = rented;
         }
 
         public byte Pop()
@@ -405,6 +425,14 @@ internal ref struct Utf8JsonRepairStateMachine
         public readonly byte Peek()
         {
             return _count > 0 ? _buffer[_count - 1] : (byte)0;
+        }
+
+        public void Release()
+        {
+            if (_rented is not null) {
+                ArrayPool<byte>.Shared.Return(_rented);
+                _rented = null;
+            }
         }
     }
 }
