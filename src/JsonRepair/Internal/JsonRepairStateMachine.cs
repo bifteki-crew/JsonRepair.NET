@@ -64,7 +64,7 @@ internal ref struct JsonRepairStateMachine
                 }
 
                 if (char.IsWhiteSpace(c)) {
-                    // Collapse consecutive whitespace outside strings to a single space unless after '{', '[', ':', ',' or before '}', ']'
+                    // Collapse consecutive whitespace outside strings to a single space unless after '{', '[', ':', or ','
                     if (_sb.Length > 0 && !char.IsWhiteSpace(_sb[^1]) && _sb[^1] is not '{' and not '[' and not ':' and not ',') {
                         _sb.Append(' ');
                     }

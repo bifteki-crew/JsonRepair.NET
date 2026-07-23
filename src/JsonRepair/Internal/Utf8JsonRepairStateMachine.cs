@@ -88,7 +88,12 @@ internal ref struct Utf8JsonRepairStateMachine
                         while (index + 1 < _input.Length && !(_input[index] == (byte)'*' && _input[index + 1] == (byte)'/')) {
                             index++;
                         }
-                        index += 2; // Skip closing */
+                        if (index + 1 < _input.Length && _input[index] == (byte)'*' && _input[index + 1] == (byte)'/') {
+                            index += 2; // Skip closing */
+                        }
+                        else {
+                            index = _input.Length; // Unterminated block comment at end of input
+                        }
                         continue;
                     }
                 }

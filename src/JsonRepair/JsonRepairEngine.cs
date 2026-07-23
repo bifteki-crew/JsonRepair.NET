@@ -225,7 +225,12 @@ public static class JsonRepairEngine
                 while (i + 1 < input.Length && !(input[i] == '*' && input[i + 1] == '/')) {
                     i++;
                 }
-                i++; // Skip closing '/'
+                if (i + 1 < input.Length && input[i] == '*' && input[i + 1] == '/') {
+                    i++; // Skip closing '/'
+                }
+                else {
+                    i = input.Length; // Unterminated block comment at end of input
+                }
                 continue;
             }
 
