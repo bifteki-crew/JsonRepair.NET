@@ -54,7 +54,7 @@ internal ref struct Utf8JsonRepairStateMachine
                         case (byte)'\t': WriteString("\\t"); break;
                         case (byte)'\b': WriteString("\\b"); break;
                         case (byte)'\f': WriteString("\\f"); break;
-                        default: WriteString($"\\u{(int)b:x4}"); break;
+                        default: WriteHexEscape(b); break;
                     }
                 }
                 else if (b == (byte)'"' && currentQuote == (byte)'\'') {
@@ -357,6 +357,24 @@ internal ref struct Utf8JsonRepairStateMachine
         if (byteCount > 0) {
             _lastWrittenByte = span[byteCount - 1];
         }
+    }
+
+    private void WriteHexEscape(byte b)
+    {
+        Span<byte> span = _writer.GetSpan(6);
+        span[0] = (byte)'\\';
+        span[1] = (byte)'u';
+        span[2] = (byte)'0';
+        span[3] = (byte)'0';
+        span[4] = GetHexDigit(b >> 4);
+        span[5] = GetHexDigit(b & 0x0F);
+        _writer.Advance(6);
+        _lastWrittenByte = span[5];
+    }
+
+    private static byte GetHexDigit(int val)
+    {
+        return (byte)(val < 10 ? '0' + val : 'a' + (val - 10));
     }
 
     private ref struct ByteStack

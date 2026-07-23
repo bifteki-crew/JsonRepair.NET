@@ -107,9 +107,9 @@ public class Utf8StreamingTests
         public BufferSegment Append(Memory<byte> memory)
         {
             var nextSegment = new BufferSegment(memory) {
-                RunningIndex = RunningIndex + Memory.Length
+                RunningIndex = this.RunningIndex + this.Memory.Length
             };
-            Next = nextSegment;
+            this.Next = nextSegment;
             return nextSegment;
         }
     }
