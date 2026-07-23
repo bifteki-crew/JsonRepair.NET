@@ -44,6 +44,21 @@ public class Utf8StreamingTests
     }
 
     [Fact]
+    public void Repair_Utf8Span_ShouldStripSingleAndMultiLineComments()
+    {
+        // Arrange
+        byte[] malformedUtf8 = Encoding.UTF8.GetBytes("{ \"a\": 1, // single line comment\n \"b\": /* block comment */ 2 }");
+        var writer = new ArrayBufferWriter<byte>();
+
+        // Act
+        JsonRepairEngine.Repair(malformedUtf8.AsSpan(), writer);
+
+        // Assert
+        string result = Encoding.UTF8.GetString(writer.WrittenSpan);
+        result.Should().Be("{\"a\":1,\"b\":2}");
+    }
+
+    [Fact]
     public void Repair_Utf8Sequence_ShouldHandleMultiSegmentSequence()
     {
         // Arrange: Create a multi-segment ReadOnlySequence

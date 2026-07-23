@@ -72,6 +72,26 @@ internal ref struct Utf8JsonRepairStateMachine
                 continue;
             }
 
+            // Strip single-line (//) and multi-line (/* */) comments
+            if (b == (byte)'/' && _options.StripComments) {
+                byte next = index + 1 < _input.Length ? _input[index + 1] : (byte)0;
+                if (next == (byte)'/') {
+                    index += 2;
+                    while (index < _input.Length && _input[index] is not (byte)'\n' and not (byte)'\r') {
+                        index++;
+                    }
+                    continue;
+                }
+                if (next == (byte)'*') {
+                    index += 2;
+                    while (index + 1 < _input.Length && !(_input[index] == (byte)'*' && _input[index + 1] == (byte)'/')) {
+                        index++;
+                    }
+                    index += 2; // Skip closing */
+                    continue;
+                }
+            }
+
             if (b is (byte)'"' or (byte)'\'') {
                 if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
                     EnsureCommaIfMissing();
