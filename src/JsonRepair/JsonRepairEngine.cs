@@ -59,6 +59,8 @@ public static class JsonRepairEngine
     /// </summary>
     public static void Repair(ReadOnlySpan<byte> utf8Input, IBufferWriter<byte> writer, JsonRepairOptions? options = null)
     {
+        ArgumentNullException.ThrowIfNull(writer);
+
         if (utf8Input.IsEmpty) {
             Span<byte> span = writer.GetSpan(2);
             "{}"u8.CopyTo(span);
@@ -77,15 +79,22 @@ public static class JsonRepairEngine
     /// </summary>
     public static void Repair(ReadOnlySequence<byte> utf8Input, IBufferWriter<byte> writer, JsonRepairOptions? options = null)
     {
+        ArgumentNullException.ThrowIfNull(writer);
+
         if (utf8Input.IsSingleSegment) {
             Repair(utf8Input.FirstSpan, writer, options);
             return;
         }
 
-        byte[] rented = ArrayPool<byte>.Shared.Rent((int)utf8Input.Length);
+        if (utf8Input.Length > int.MaxValue) {
+            throw new ArgumentOutOfRangeException(nameof(utf8Input), "Input sequence length exceeds maximum 2 GB limit.");
+        }
+
+        int length = (int)utf8Input.Length;
+        byte[] rented = ArrayPool<byte>.Shared.Rent(length);
         try {
             utf8Input.CopyTo(rented);
-            Repair(rented.AsSpan(0, (int)utf8Input.Length), writer, options);
+            Repair(rented.AsSpan(0, length), writer, options);
         }
         finally {
             ArrayPool<byte>.Shared.Return(rented);
@@ -97,13 +106,20 @@ public static class JsonRepairEngine
     /// </summary>
     public static async Task RepairAsync(Stream inputStream, Stream outputStream, JsonRepairOptions? options = null, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(inputStream);
+        ArgumentNullException.ThrowIfNull(outputStream);
+
         using var ms = new MemoryStream();
         await inputStream.CopyToAsync(ms, cancellationToken).ConfigureAwait(false);
 
-        byte[] buffer = ms.TryGetBuffer(out ArraySegment<byte> segment) ? segment.Array! : ms.ToArray();
-        int count = (int)ms.Length;
+        if (ms.Length > int.MaxValue) {
+            throw new ArgumentOutOfRangeException(nameof(inputStream), "Input stream length exceeds maximum 2 GB limit.");
+        }
 
-        var bufferWriter = new ArrayBufferWriter<byte>(count + 32);
+        int count = checked((int)ms.Length);
+        byte[] buffer = ms.TryGetBuffer(out ArraySegment<byte> segment) ? segment.Array! : ms.ToArray();
+
+        var bufferWriter = new ArrayBufferWriter<byte>(checked(count + 32));
         Repair(new ReadOnlySpan<byte>(buffer, 0, count), bufferWriter, options);
 
         await outputStream.WriteAsync(bufferWriter.WrittenMemory, cancellationToken).ConfigureAwait(false);

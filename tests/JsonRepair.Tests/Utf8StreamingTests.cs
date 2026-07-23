@@ -1,3 +1,4 @@
+using System;
 using System.Buffers;
 using System.IO;
 using System.Text;
@@ -71,6 +72,25 @@ public class Utf8StreamingTests
         // Assert
         string result = Encoding.UTF8.GetString(writer.WrittenSpan);
         result.Should().Be("{\"a\":1,\"b\":2}");
+    }
+
+    [Fact]
+    public void Repair_NullWriter_ShouldThrowArgumentNullException()
+    {
+        byte[] input = "{}"u8.ToArray();
+        Action act = () => JsonRepairEngine.Repair(input.AsSpan(), null!);
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public async Task RepairAsync_NullStreams_ShouldThrowArgumentNullException()
+    {
+        using var ms = new MemoryStream();
+        Func<Task> act1 = async () => await JsonRepairEngine.RepairAsync(null!, ms);
+        Func<Task> act2 = async () => await JsonRepairEngine.RepairAsync(ms, null!);
+
+        await act1.Should().ThrowAsync<ArgumentNullException>();
+        await act2.Should().ThrowAsync<ArgumentNullException>();
     }
 
     [Fact]
