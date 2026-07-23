@@ -74,6 +74,24 @@ public class Utf8StreamingTests
         result.Should().Be("{\"a\":1,\"b\":2}");
     }
 
+    [Theory]
+    [InlineData("```json\n42\n```", "42")]
+    [InlineData("```json\n'hello world'\n```", "\"hello world\"")]
+    [InlineData("```json\nTrue\n```", "true")]
+    public void Repair_Utf8Span_ShouldRepairMarkdownFencedPrimitives(string inputStr, string expected)
+    {
+        // Arrange
+        byte[] malformedUtf8 = Encoding.UTF8.GetBytes(inputStr);
+        var writer = new ArrayBufferWriter<byte>();
+
+        // Act
+        JsonRepairEngine.Repair(malformedUtf8.AsSpan(), writer);
+
+        // Assert
+        string result = Encoding.UTF8.GetString(writer.WrittenSpan);
+        result.Should().Be(expected);
+    }
+
     [Fact]
     public void Repair_Utf8Span_ShouldHandleUnterminatedBlockCommentAtEof()
     {

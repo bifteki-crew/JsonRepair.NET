@@ -6,7 +6,7 @@ namespace JsonRepair.Internal;
 
 internal ref struct Utf8JsonRepairStateMachine
 {
-    private readonly ReadOnlySpan<byte> _input;
+    private ReadOnlySpan<byte> _input;
     private readonly JsonRepairOptions _options;
     private readonly IBufferWriter<byte> _writer;
     private ByteStack _structureStack;
@@ -15,12 +15,16 @@ internal ref struct Utf8JsonRepairStateMachine
 
     public Utf8JsonRepairStateMachine(ReadOnlySpan<byte> input, JsonRepairOptions options, IBufferWriter<byte> writer, Span<byte> stackBuffer)
     {
-        _input = input;
         _options = options;
         _writer = writer;
         _structureStack = new ByteStack(stackBuffer);
         _lastWrittenByte = 0;
         _pendingComma = false;
+
+        if (options.StripMarkdownFences) {
+            input = StripMarkdownFences(input);
+        }
+        _input = input;
     }
 
     public void Repair()
@@ -233,10 +237,41 @@ internal ref struct Utf8JsonRepairStateMachine
         }
     }
 
+    private static ReadOnlySpan<byte> StripMarkdownFences(ReadOnlySpan<byte> input)
+    {
+        input = TrimWhitespace(input);
+        if (input.StartsWith("```json"u8)) {
+            input = input[7..];
+        }
+        else if (input.StartsWith("```"u8)) {
+            input = input[3..];
+        }
+
+        if (input.EndsWith("```"u8)) {
+            input = input[..^3];
+        }
+
+        return TrimWhitespace(input);
+    }
+
+    private static ReadOnlySpan<byte> TrimWhitespace(ReadOnlySpan<byte> input)
+    {
+        int start = 0;
+        while (start < input.Length && input[start] is (byte)' ' or (byte)'\t' or (byte)'\r' or (byte)'\n') {
+            start++;
+        }
+        int end = input.Length - 1;
+        while (end >= start && input[end] is (byte)' ' or (byte)'\t' or (byte)'\r' or (byte)'\n') {
+            end--;
+        }
+        return start <= end ? input.Slice(start, end - start + 1) : ReadOnlySpan<byte>.Empty;
+    }
+
     private static int FindFirstJsonToken(ReadOnlySpan<byte> span)
     {
         for (int i = 0; i < span.Length; i++) {
-            if (span[i] is (byte)'{' or (byte)'[') {
+            byte b = span[i];
+            if (b is (byte)'{' or (byte)'[' or (byte)'"' or (byte)'\'' or (>= (byte)'0' and <= (byte)'9') or (byte)'-' or (byte)'t' or (byte)'f' or (byte)'n' or (byte)'T' or (byte)'F' or (byte)'N') {
                 return i;
             }
         }

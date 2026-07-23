@@ -68,7 +68,7 @@ if (JsonRepairEngine.TryParse(malformedLlmJson, out JsonDocument? doc))
 using System.Buffers;
 using JsonRepair;
 
-// Direct zero-allocation UTF-8 byte span repair
+// Direct zero-string-allocation UTF-8 byte span repair
 byte[] utf8Input = "{item: 'Bifteki', price: 14.99}"u8.ToArray();
 var writer = new ArrayBufferWriter<byte>();
 JsonRepairEngine.Repair(utf8Input.AsSpan(), writer);
