@@ -29,6 +29,21 @@ public class Utf8StreamingTests
     }
 
     [Fact]
+    public void Repair_Utf8Span_ShouldQuoteUnquotedUtf8Keys()
+    {
+        // Arrange
+        byte[] malformedUtf8 = Encoding.UTF8.GetBytes("{ münchen: 'Germany', 🥩: 'Bifteki' }");
+        var writer = new ArrayBufferWriter<byte>();
+
+        // Act
+        JsonRepairEngine.Repair(malformedUtf8.AsSpan(), writer);
+
+        // Assert
+        string result = Encoding.UTF8.GetString(writer.WrittenSpan);
+        result.Should().Be("{\"münchen\":\"Germany\",\"🥩\":\"Bifteki\"}");
+    }
+
+    [Fact]
     public void Repair_Utf8Span_ShouldStripTrailingCommas()
     {
         // Arrange

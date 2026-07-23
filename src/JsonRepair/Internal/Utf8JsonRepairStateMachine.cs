@@ -176,8 +176,8 @@ internal ref struct Utf8JsonRepairStateMachine
                 continue;
             }
 
-            // Check for unquoted keys/identifiers
-            if (b is (>= (byte)'a' and <= (byte)'z') or (>= (byte)'A' and <= (byte)'Z') or (byte)'_') {
+            // Check for unquoted keys/identifiers (including non-ASCII UTF-8 bytes >= 0x80)
+            if (b is (>= (byte)'a' and <= (byte)'z') or (>= (byte)'A' and <= (byte)'Z') or (byte)'_' or >= 0x80) {
                 if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
                     EnsureCommaIfMissing();
                 }
@@ -312,7 +312,7 @@ internal ref struct Utf8JsonRepairStateMachine
         int len = 0;
         while (start + len < span.Length) {
             byte b = span[start + len];
-            if (b is (>= (byte)'a' and <= (byte)'z') or (>= (byte)'A' and <= (byte)'Z') or (>= (byte)'0' and <= (byte)'9') or (byte)'_' or (byte)'-') {
+            if (b is (>= (byte)'a' and <= (byte)'z') or (>= (byte)'A' and <= (byte)'Z') or (>= (byte)'0' and <= (byte)'9') or (byte)'_' or (byte)'-' or >= 0x80) {
                 len++;
             }
             else {
