@@ -36,20 +36,21 @@ internal ref struct JsonRepairStateMachine
             char c = _input[index];
 
             if (inString) {
-                if (c == currentQuote && (index == 0 || _input[index - 1] != '\\')) {
+                if (c == currentQuote && !IsEscaped(_input, index)) {
                     _sb.Append('"');
                     inString = false;
                     currentQuote = '\0';
                     expectedValue = false;
                 }
-                else if (c == '\n') {
-                    _sb.Append("\\n");
-                }
-                else if (c == '\r') {
-                    _sb.Append("\\r");
-                }
-                else if (c == '\t') {
-                    _sb.Append("\\t");
+                else if (c < 32) {
+                    switch (c) {
+                        case '\n': _sb.Append("\\n"); break;
+                        case '\r': _sb.Append("\\r"); break;
+                        case '\t': _sb.Append("\\t"); break;
+                        case '\b': _sb.Append("\\b"); break;
+                        case '\f': _sb.Append("\\f"); break;
+                        default: _sb.Append($"\\u{(int)c:x4}"); break;
+                    }
                 }
                 else if (c == '"' && currentQuote == '\'') {
                     _sb.Append("\\\"");
@@ -71,7 +72,7 @@ internal ref struct JsonRepairStateMachine
             }
 
             if (c is '"' or '\'') {
-                if (!expectedValue && _options.InsertMissingCommas) {
+                if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
                     EnsureCommaIfMissing();
                 }
                 inString = true;
@@ -135,6 +136,19 @@ internal ref struct JsonRepairStateMachine
                 continue;
             }
 
+            // Check for numbers (digits or leading minus)
+            if (char.IsDigit(c) || c == '-') {
+                if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
+                    EnsureCommaIfMissing();
+                }
+                int len = GetNumberLength(_input, index);
+                ReadOnlySpan<char> numSpan = _input.Slice(index, len);
+                _sb.Append(numSpan);
+                expectedValue = false;
+                index += len;
+                continue;
+            }
+
             // Check for unquoted keys or unquoted values
             if (char.IsLetter(c) || c == '_') {
                 if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
@@ -154,24 +168,6 @@ internal ref struct JsonRepairStateMachine
                 }
 
                 index += len;
-                continue;
-            }
-
-            if (char.IsDigit(c) || c == '.' || c == '-') {
-                if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
-                    int lastIdx = _sb.Length - 1;
-                    bool hasSpaceBefore = false;
-                    while (lastIdx >= 0 && char.IsWhiteSpace(_sb[lastIdx])) {
-                        hasSpaceBefore = true;
-                        lastIdx--;
-                    }
-                    if (lastIdx < 0 || hasSpaceBefore || (!char.IsDigit(_sb[lastIdx]) && _sb[lastIdx] != '.' && _sb[lastIdx] != '-')) {
-                        EnsureCommaIfMissing();
-                    }
-                }
-                _sb.Append(c);
-                expectedValue = false;
-                index++;
                 continue;
             }
 
@@ -229,16 +225,21 @@ internal ref struct JsonRepairStateMachine
         }
 
         if (i >= 0 && sb[i] == ',') {
-            sb.Remove(i, sb.Length - i);
             i--;
             while (i >= 0 && char.IsWhiteSpace(sb[i])) {
                 i--;
             }
+            sb.Length = i + 1;
         }
+    }
 
-        if (i < sb.Length - 1) {
-            sb.Remove(i + 1, sb.Length - (i + 1));
+    private static bool IsEscaped(ReadOnlySpan<char> span, int index)
+    {
+        int backslashCount = 0;
+        for (int i = index - 1; i >= 0 && span[i] == '\\'; i--) {
+            backslashCount++;
         }
+        return (backslashCount % 2) != 0;
     }
 
     private static bool TryMatchLiteral(ReadOnlySpan<char> span, int index, out string? replacement, out int length)
@@ -275,6 +276,21 @@ internal ref struct JsonRepairStateMachine
         }
 
         return false;
+    }
+
+    private static int GetNumberLength(ReadOnlySpan<char> span, int start)
+    {
+        int len = 0;
+        while (start + len < span.Length) {
+            char ch = span[start + len];
+            if (char.IsDigit(ch) || ch is '.' or '-' or '+' or 'e' or 'E') {
+                len++;
+            }
+            else {
+                break;
+            }
+        }
+        return len;
     }
 
     private static int GetIdentifierLength(ReadOnlySpan<char> span, int start)

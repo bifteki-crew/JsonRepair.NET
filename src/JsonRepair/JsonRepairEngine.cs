@@ -11,6 +11,13 @@ namespace JsonRepair;
 public static class JsonRepairEngine
 {
     /// <summary>
+    /// Default JsonSerializerOptions configured for web/LLM case-insensitive property matching.
+    /// </summary>
+    public static JsonSerializerOptions DefaultJsonSerializerOptions { get; } = new(JsonSerializerOptions.Web) {
+        PropertyNameCaseInsensitive = true
+    };
+
+    /// <summary>
     /// Repairs a malformed JSON string into valid, standard JSON.
     /// </summary>
     /// <param name="json">The malformed JSON string.</param>
@@ -43,13 +50,6 @@ public static class JsonRepairEngine
     }
 
     /// <summary>
-    /// Default JsonSerializerOptions configured for web/LLM case-insensitive property matching.
-    /// </summary>
-    public static JsonSerializerOptions DefaultJsonSerializerOptions { get; } = new(JsonSerializerOptions.Web) {
-        PropertyNameCaseInsensitive = true
-    };
-
-    /// <summary>
     /// Repairs malformed JSON and deserializes directly into target type <typeparamref name="T"/>.
     /// </summary>
     public static T? Deserialize<T>(string malformedJson, JsonRepairOptions? options = null, JsonSerializerOptions? jsonSerializerOptions = null)
@@ -68,7 +68,10 @@ public static class JsonRepairEngine
             result = Deserialize<T>(malformedJson, options, jsonSerializerOptions);
             return result is not null;
         }
-        catch {
+        catch (JsonException) {
+            return false;
+        }
+        catch (FormatException) {
             return false;
         }
     }
@@ -84,7 +87,7 @@ public static class JsonRepairEngine
             document = JsonDocument.Parse(repaired);
             return true;
         }
-        catch {
+        catch (JsonException) {
             return false;
         }
     }
@@ -118,7 +121,7 @@ public static class JsonRepairEngine
 
             if (inString) {
                 sb.Append(c);
-                if (c == quoteChar && (i == 0 || input[i - 1] != '\\')) {
+                if (c == quoteChar && !IsEscaped(input, i)) {
                     inString = false;
                 }
                 continue;
@@ -154,5 +157,14 @@ public static class JsonRepairEngine
         }
 
         return sb.ToString();
+    }
+
+    private static bool IsEscaped(ReadOnlySpan<char> span, int index)
+    {
+        int backslashCount = 0;
+        for (int i = index - 1; i >= 0 && span[i] == '\\'; i--) {
+            backslashCount++;
+        }
+        return (backslashCount % 2) != 0;
     }
 }
