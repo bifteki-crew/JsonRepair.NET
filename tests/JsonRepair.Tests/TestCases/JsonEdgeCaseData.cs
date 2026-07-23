@@ -15,6 +15,8 @@ public class JsonEdgeCaseData : TheoryData<string, string, string>
         Add("TC06", "{\"val\": undefined, \"num\": NaN}", "{\"val\": null, \"num\": null}");
         Add("TC07", "{\"a\": 1, \"b\": 2,}", "{\"a\": 1, \"b\": 2}");
         Add("TC08", "[1, 2, 3,]", "[1, 2, 3]");
+        Add("TC09", "{\"a\": 1 \"b\": 2}", "{\"a\": 1, \"b\": 2}");
+        Add("TC10", "[1 2 3]", "[1, 2, 3]");
         Add("TC11", "[1, 2, 3", "[1, 2, 3]");
         Add("TC12", "{\"a\": 1, \"b\": {\"c\": 2", "{\"a\": 1, \"b\": {\"c\": 2}}");
         Add("TC14", "{\"a\": 1 // single line comment\n}", "{\"a\": 1}");

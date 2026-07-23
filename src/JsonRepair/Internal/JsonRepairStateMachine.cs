@@ -71,6 +71,9 @@ internal ref struct JsonRepairStateMachine
             }
 
             if (c is '"' or '\'') {
+                if (!expectedValue && _options.InsertMissingCommas) {
+                    EnsureCommaIfMissing();
+                }
                 inString = true;
                 currentQuote = c;
                 _sb.Append('"');
@@ -79,6 +82,9 @@ internal ref struct JsonRepairStateMachine
             }
 
             if (c == '{' || c == '[') {
+                if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
+                    EnsureCommaIfMissing();
+                }
                 _structureStack.Push(c);
                 _sb.Append(c);
                 expectedValue = false;
@@ -131,6 +137,9 @@ internal ref struct JsonRepairStateMachine
 
             // Check for unquoted keys or unquoted values
             if (char.IsLetter(c) || c == '_') {
+                if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
+                    EnsureCommaIfMissing();
+                }
                 int len = GetIdentifierLength(_input, index);
                 ReadOnlySpan<char> identifier = _input.Slice(index, len);
 
@@ -145,6 +154,24 @@ internal ref struct JsonRepairStateMachine
                 }
 
                 index += len;
+                continue;
+            }
+
+            if (char.IsDigit(c) || c == '.' || c == '-') {
+                if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
+                    int lastIdx = _sb.Length - 1;
+                    bool hasSpaceBefore = false;
+                    while (lastIdx >= 0 && char.IsWhiteSpace(_sb[lastIdx])) {
+                        hasSpaceBefore = true;
+                        lastIdx--;
+                    }
+                    if (lastIdx < 0 || hasSpaceBefore || (!char.IsDigit(_sb[lastIdx]) && _sb[lastIdx] != '.' && _sb[lastIdx] != '-')) {
+                        EnsureCommaIfMissing();
+                    }
+                }
+                _sb.Append(c);
+                expectedValue = false;
+                index++;
                 continue;
             }
 
@@ -177,6 +204,21 @@ internal ref struct JsonRepairStateMachine
             }
         }
         return 0;
+    }
+
+    private void EnsureCommaIfMissing()
+    {
+        int i = _sb.Length - 1;
+        while (i >= 0 && char.IsWhiteSpace(_sb[i])) {
+            i--;
+        }
+
+        if (i >= 0) {
+            char last = _sb[i];
+            if (last is not '{' and not '[' and not ':' and not ',') {
+                _sb.Append(',');
+            }
+        }
     }
 
     private static void TrimTrailingComma(StringBuilder sb)
