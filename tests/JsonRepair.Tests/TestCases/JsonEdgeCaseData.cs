@@ -25,5 +25,13 @@ public class JsonEdgeCaseData : TheoryData<string, string, string>
         Add("TC20", "{'path': 'C:\\\\Users\\\\test'}", "{\"path\": \"C:\\\\Users\\\\test\"}");
         Add("TC21", "{\"val\": 1.2e-3, \"big\": 1E+10}", "{\"val\": 1.2e-3, \"big\": 1E+10}");
         Add("TC22", "{\"text\": \"line1\bline2\f\"}", "{\"text\": \"line1\\bline2\\f\"}");
+        Add("TC23", "{None: 1}", "{\"None\": 1}");
+        Add("TC24", "{True: 'yes'}", "{\"True\": \"yes\"}");
+        Add("TC25", "{a: None}", "{\"a\": null}");
+        Add("TC26", "{\"a\": 1]", "{\"a\": 1}");
+        Add("TC27", "[1, 2}", "[1, 2]");
+        Add("TC28", "{]", "{}");
+        Add("TC29", "{\"a\": [1, 2}", "{\"a\": [1, 2]}");
+        Add("TC30", "[1 None]", "[1, null]");
     }
 }

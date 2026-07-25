@@ -54,4 +54,34 @@ public class RepairEngineTests
         // Assert
         repaired.Should().Be("{'item':'Bifteki'}");
     }
+
+    [Fact]
+    public void TryDeserialize_ShouldReturnTrue_WhenResultIsNull()
+    {
+        // Act
+        bool successString = JsonRepairEngine.TryDeserialize<string>("null", out var stringResult);
+        bool successNullable = JsonRepairEngine.TryDeserialize<int?>("null", out var intResult);
+
+        // Assert
+        successString.Should().BeTrue();
+        stringResult.Should().BeNull();
+        successNullable.Should().BeTrue();
+        intResult.Should().BeNull();
+    }
+
+    [Fact]
+    public void Repair_ShouldNotConvertLiteralPrefixInsideLongerWord()
+    {
+        // Arrange: "TrueStuff" starts with "True" but is one identifier.
+        // Unquoted string VALUES are not yet supported (Tier 3 / 0.3.0),
+        // so the identifier must pass through untouched instead of being
+        // corrupted into {"a":true,"Stuff"}.
+        string malformed = "{a: TrueStuff}";
+
+        // Act
+        string repaired = JsonRepairEngine.Repair(malformed);
+
+        // Assert
+        repaired.Should().Be("{\"a\":TrueStuff}");
+    }
 }

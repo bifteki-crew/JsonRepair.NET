@@ -105,6 +105,7 @@ dotnet run --project src/JsonRepair.Cli
 - 📄 [02-vision-and-architecture.md](docs/02-vision-and-architecture.md): Vision & span state machine design.
 - 📄 [03-tdd-roadmap.md](docs/03-tdd-roadmap.md): TDD test matrix (20+ failure modes).
 - 📄 [04-implementation-roadmap.md](docs/04-implementation-roadmap.md): Phased delivery roadmap.
+- 📄 [05-pre-1.0-roadmap.md](docs/05-pre-1.0-roadmap.md): Pre-1.0 release tiers (0.1.0 → 1.0.0), critical-findings gate & hardening plan.
 
 ---
 

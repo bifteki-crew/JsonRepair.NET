@@ -123,6 +123,63 @@ public class Utf8StreamingTests
         result.Should().Be("{\"a\":1}");
     }
 
+    [Theory]
+    [InlineData("{None: 1}", "{\"None\":1}")]
+    [InlineData("{True: 'yes'}", "{\"True\":\"yes\"}")]
+    [InlineData("{a: None}", "{\"a\":null}")]
+    [InlineData("[1 None]", "[1,null]")]
+    public void Repair_Utf8Span_ShouldOnlyConvertLiteralsInValuePosition(string inputStr, string expected)
+    {
+        // Arrange
+        byte[] malformedUtf8 = Encoding.UTF8.GetBytes(inputStr);
+        var writer = new ArrayBufferWriter<byte>();
+
+        // Act
+        JsonRepairEngine.Repair(malformedUtf8.AsSpan(), writer);
+
+        // Assert
+        string result = Encoding.UTF8.GetString(writer.WrittenSpan);
+        result.Should().Be(expected);
+    }
+
+    [Fact]
+    public void Repair_Utf8Span_ShouldNotConvertLiteralPrefixInsideLongerWord()
+    {
+        // Arrange: unquoted string VALUES are not yet supported (Tier 3 / 0.3.0),
+        // the identifier must pass through untouched.
+        byte[] malformedUtf8 = Encoding.UTF8.GetBytes("{a: TrueStuff}");
+        var writer = new ArrayBufferWriter<byte>();
+
+        // Act
+        JsonRepairEngine.Repair(malformedUtf8.AsSpan(), writer);
+
+        // Assert
+        string result = Encoding.UTF8.GetString(writer.WrittenSpan);
+        result.Should().Be("{\"a\":TrueStuff}");
+    }
+
+    [Theory]
+    [InlineData("{\"a\": 1]", "{\"a\":1}")]
+    [InlineData("[1, 2}", "[1,2]")]
+    [InlineData("{]", "{}")]
+    [InlineData("{\"a\": [1, 2}", "{\"a\":[1,2]}")]
+    public void Repair_Utf8Span_ShouldRepairMismatchedClosingBrackets(string inputStr, string expected)
+    {
+        // Arrange
+        byte[] malformedUtf8 = Encoding.UTF8.GetBytes(inputStr);
+        var writer = new ArrayBufferWriter<byte>();
+
+        // Act
+        JsonRepairEngine.Repair(malformedUtf8.AsSpan(), writer);
+
+        // Assert
+        string result = Encoding.UTF8.GetString(writer.WrittenSpan);
+        result.Should().Be(expected);
+
+        using var doc = JsonDocument.Parse(result);
+        doc.RootElement.Should().NotBeNull();
+    }
+
     [Fact]
     public void Repair_Utf8Span_ShouldHandleDeepNestingExceedingStackBuffer()
     {

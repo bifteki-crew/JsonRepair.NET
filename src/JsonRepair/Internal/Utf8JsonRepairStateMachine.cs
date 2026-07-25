@@ -137,11 +137,17 @@ internal ref struct Utf8JsonRepairStateMachine
                         FlushPendingComma();
                     }
 
+                    byte closeByte = b;
                     if (_structureStack.Count > 0) {
-                        _structureStack.Pop();
+                        byte open = _structureStack.Pop();
+                        byte matching = open == (byte)'{' ? (byte)'}' : (byte)']';
+                        if (matching != b) {
+                            // Repair mismatched closing bracket by emitting the one matching the open bracket
+                            closeByte = matching;
+                        }
                     }
 
-                    WriteByte(b);
+                    WriteByte(closeByte);
                     expectedValue = false;
                     index++;
 
@@ -166,8 +172,14 @@ internal ref struct Utf8JsonRepairStateMachine
                     continue;
                 }
 
+                // Object key position: inside '{' and not after ':' — literals there are keys and must be quoted, not converted
+                bool inKeyPosition = _structureStack.Count > 0 && _structureStack.Peek() == (byte)'{' && !expectedValue;
+
                 // Check for non-standard literals (None, True, False, undefined, NaN)
-                if (_options.ConvertNonStandardLiterals && TryMatchLiteral(_input, index, out ReadOnlySpan<byte> repairedLiteral, out int literalLen)) {
+                if (_options.ConvertNonStandardLiterals && !inKeyPosition && TryMatchLiteral(_input, index, out ReadOnlySpan<byte> repairedLiteral, out int literalLen)) {
+                    if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
+                        EnsureCommaIfMissing();
+                    }
                     FlushPendingComma();
                     WriteBytes(repairedLiteral);
                     index += literalLen;
@@ -197,7 +209,7 @@ internal ref struct Utf8JsonRepairStateMachine
                     int len = GetIdentifierLength(_input, index);
                     ReadOnlySpan<byte> identifier = _input.Slice(index, len);
 
-                    if (_structureStack.Count > 0 && _structureStack.Peek() == (byte)'{' && !expectedValue && _options.QuoteUnquotedKeys) {
+                    if (inKeyPosition && _options.QuoteUnquotedKeys) {
                         WriteByte((byte)'"');
                         WriteBytes(identifier);
                         WriteByte((byte)'"');
@@ -311,33 +323,45 @@ internal ref struct Utf8JsonRepairStateMachine
         length = 0;
         ReadOnlySpan<byte> slice = span[index..];
 
-        if (slice.StartsWith("None"u8)) {
+        if (MatchLiteralWord(slice, "None"u8)) {
             replacement = "null"u8;
             length = 4;
             return true;
         }
-        if (slice.StartsWith("True"u8)) {
+        if (MatchLiteralWord(slice, "True"u8)) {
             replacement = "true"u8;
             length = 4;
             return true;
         }
-        if (slice.StartsWith("False"u8)) {
+        if (MatchLiteralWord(slice, "False"u8)) {
             replacement = "false"u8;
             length = 5;
             return true;
         }
-        if (slice.StartsWith("undefined"u8)) {
+        if (MatchLiteralWord(slice, "undefined"u8)) {
             replacement = "null"u8;
             length = 9;
             return true;
         }
-        if (slice.StartsWith("NaN"u8)) {
+        if (MatchLiteralWord(slice, "NaN"u8)) {
             replacement = "null"u8;
             length = 3;
             return true;
         }
 
         return false;
+    }
+
+    // Requires a word boundary after the literal so longer identifiers like "TrueStuff" are not corrupted
+    private static bool MatchLiteralWord(ReadOnlySpan<byte> slice, ReadOnlySpan<byte> word)
+    {
+        return slice.StartsWith(word)
+            && (slice.Length == word.Length || !IsIdentifierChar(slice[word.Length]));
+    }
+
+    private static bool IsIdentifierChar(byte b)
+    {
+        return b is (>= (byte)'a' and <= (byte)'z') or (>= (byte)'A' and <= (byte)'Z') or (>= (byte)'0' and <= (byte)'9') or (byte)'_' or (byte)'-' or >= 0x80;
     }
 
     private static int GetNumberLength(ReadOnlySpan<byte> span, int start)
