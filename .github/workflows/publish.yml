@@ -33,6 +33,7 @@ jobs:
       - name: Pack NuGet Package
         run: dotnet pack src/JsonRepair/JsonRepair.csproj -c Release /p:Version=${{ env.PACKAGE_VERSION }} -o ./artifacts
 
-      # Pushes .nupkg and the sibling .snupkg symbol package; NUGET_API_KEY is an org/repo secret
+      # Pushes .nupkg; nuget.org's V3 API auto-publishes the sibling .snupkg symbol package
+      # (documented: https://learn.microsoft.com/nuget/create-packages/symbol-packages-snupkg)
       - name: Push to nuget.org
         run: dotnet nuget push artifacts/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
