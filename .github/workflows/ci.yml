@@ -32,5 +32,4 @@ jobs:
       - name: Run Unit Tests
         run: dotnet test --configuration Release --no-build --verbosity normal
 
-      - name: Quick Performance Verification Pass
-        run: dotnet run --project benchmarks/JsonRepair.Benchmarks -c Release
+      # Benchmarks run on demand only (see benchmarks.yml, workflow_dispatch) to keep push CI fast.

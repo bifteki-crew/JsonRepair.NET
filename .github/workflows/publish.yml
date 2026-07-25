@@ -1,0 +1,38 @@
+name: Publish NuGet Package
+
+# Mirrors the bifteki-crew/arcbridge publish-dotnet.yml convention:
+# push a version tag (e.g. v0.1.0) to build, test, pack and publish to nuget.org.
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  publish:
+    name: Pack & Publish (JsonRepair)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Extract package version from tag
+        run: echo "PACKAGE_VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+
+      - name: Run Unit Tests (safety gate before publishing)
+        run: dotnet test --configuration Release
+
+      # /p:Version overrides csproj <Version> and flows to PackageVersion + assembly versions
+      - name: Pack NuGet Package
+        run: dotnet pack src/JsonRepair/JsonRepair.csproj -c Release /p:Version=${{ env.PACKAGE_VERSION }} -o ./artifacts
+
+      # Pushes .nupkg and the sibling .snupkg symbol package; NUGET_API_KEY is an org/repo secret
+      - name: Push to nuget.org
+        run: dotnet nuget push artifacts/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate

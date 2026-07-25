@@ -8,27 +8,40 @@ on:
 
 jobs:
   check-upstream-updates:
-    name: Check Upstream Release Updates
+    name: Check Upstream Version Updates
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Fetch Latest Release from josdejong/jsonrepair
-        id: fetch_josdejong
+      - name: Fetch Latest Versions from Both Upstreams
+        id: fetch
         run: |
-          LATEST_TAG=$(curl -s https://api.github.com/repos/josdejong/jsonrepair/releases/latest | jq -r '.tag_name // "v5.1.0"')
-          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
-          echo "Latest josdejong/jsonrepair release: $LATEST_TAG"
+          # josdejong/jsonrepair publishes git tags only (no GitHub Releases) -> poll /tags
+          JOSDEJONG_LATEST=$(curl -s "https://api.github.com/repos/josdejong/jsonrepair/tags?per_page=1" | jq -r '.[0].name')
+          # mangiucugna/json_repair publishes GitHub Releases -> poll /releases/latest
+          MANGIUCUGNA_LATEST=$(curl -s "https://api.github.com/repos/mangiucugna/json_repair/releases/latest" | jq -r '.tag_name')
+          echo "josdejong_latest=$JOSDEJONG_LATEST" >> $GITHUB_OUTPUT
+          echo "mangiucugna_latest=$MANGIUCUGNA_LATEST" >> $GITHUB_OUTPUT
+          echo "Latest josdejong/jsonrepair tag: $JOSDEJONG_LATEST"
+          echo "Latest mangiucugna/json_repair release: $MANGIUCUGNA_LATEST"
 
-      - name: Compare with Tracked Version in docs/UPSTREAM.md
+      - name: Compare with Tracked Versions in docs/UPSTREAM.md
         run: |
-          TRACKED_TAG=$(grep -oP 'josdejong/jsonrepair@\K[v0-9.]+' docs/UPSTREAM.md || echo "v5.1.0")
-          LATEST_TAG="${{ steps.fetch_josdejong.outputs.latest_tag }}"
-          
-          if [ "$TRACKED_TAG" != "$LATEST_TAG" ]; then
-            echo "::notice ::New upstream release detected! Tracked: $TRACKED_TAG, Latest: $LATEST_TAG"
+          TRACKED_JOSDEJONG=$(grep -oP 'josdejong/jsonrepair@\K[v0-9.]+' docs/UPSTREAM.md || echo "unknown")
+          TRACKED_MANGIUCUGNA=$(grep -oP 'mangiucugna/json_repair@\K[v0-9.]+' docs/UPSTREAM.md || echo "unknown")
+          JOSDEJONG_LATEST="${{ steps.fetch.outputs.josdejong_latest }}"
+          MANGIUCUGNA_LATEST="${{ steps.fetch.outputs.mangiucugna_latest }}"
+
+          if [ "$TRACKED_JOSDEJONG" != "$JOSDEJONG_LATEST" ]; then
+            echo "::notice ::New josdejong/jsonrepair tag detected! Tracked: $TRACKED_JOSDEJONG, Latest: $JOSDEJONG_LATEST"
           else
-            echo "Upstream is fully in sync ($TRACKED_TAG)."
+            echo "josdejong/jsonrepair is in sync ($TRACKED_JOSDEJONG)."
+          fi
+
+          if [ "$TRACKED_MANGIUCUGNA" != "$MANGIUCUGNA_LATEST" ]; then
+            echo "::notice ::New mangiucugna/json_repair release detected! Tracked: $TRACKED_MANGIUCUGNA, Latest: $MANGIUCUGNA_LATEST"
+          else
+            echo "mangiucugna/json_repair is in sync ($TRACKED_MANGIUCUGNA)."
           fi
