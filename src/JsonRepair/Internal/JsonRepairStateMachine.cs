@@ -100,11 +100,17 @@ internal ref struct JsonRepairStateMachine
                         TrimTrailingComma(_sb);
                     }
 
+                    char closeChar = c;
                     if (_structureStack.Count > 0) {
-                        _structureStack.Pop();
+                        char open = _structureStack.Pop();
+                        char matching = open == '{' ? '}' : ']';
+                        if (matching != c) {
+                            // Repair mismatched closing bracket by emitting the one matching the open bracket
+                            closeChar = matching;
+                        }
                     }
 
-                    _sb.Append(c);
+                    _sb.Append(closeChar);
                     expectedValue = false;
                     index++;
 
@@ -129,8 +135,14 @@ internal ref struct JsonRepairStateMachine
                     continue;
                 }
 
+                // Object key position: inside '{' and not after ':' — literals there are keys and must be quoted, not converted
+                bool inKeyPosition = _structureStack.Count > 0 && _structureStack.Peek() == '{' && !expectedValue;
+
                 // Check for non-standard literals (None, True, False, undefined, NaN)
-                if (_options.ConvertNonStandardLiterals && TryMatchLiteral(_input, index, out string? repairedLiteral, out int literalLen)) {
+                if (_options.ConvertNonStandardLiterals && !inKeyPosition && TryMatchLiteral(_input, index, out string? repairedLiteral, out int literalLen)) {
+                    if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
+                        EnsureCommaIfMissing();
+                    }
                     _sb.Append(repairedLiteral);
                     index += literalLen;
                     expectedValue = false;
@@ -159,7 +171,7 @@ internal ref struct JsonRepairStateMachine
                     ReadOnlySpan<char> identifier = _input.Slice(index, len);
 
                     // If inside an object and expecting a key (not after ':')
-                    if (_structureStack.Count > 0 && _structureStack.Peek() == '{' && !expectedValue && _options.QuoteUnquotedKeys) {
+                    if (inKeyPosition && _options.QuoteUnquotedKeys) {
                         _sb.Append('"');
                         _sb.Append(identifier);
                         _sb.Append('"');
@@ -254,33 +266,45 @@ internal ref struct JsonRepairStateMachine
 
         ReadOnlySpan<char> slice = span[index..];
 
-        if (slice.StartsWith("None", StringComparison.Ordinal)) {
+        if (MatchLiteralWord(slice, "None")) {
             replacement = "null";
             length = 4;
             return true;
         }
-        if (slice.StartsWith("True", StringComparison.Ordinal)) {
+        if (MatchLiteralWord(slice, "True")) {
             replacement = "true";
             length = 4;
             return true;
         }
-        if (slice.StartsWith("False", StringComparison.Ordinal)) {
+        if (MatchLiteralWord(slice, "False")) {
             replacement = "false";
             length = 5;
             return true;
         }
-        if (slice.StartsWith("undefined", StringComparison.Ordinal)) {
+        if (MatchLiteralWord(slice, "undefined")) {
             replacement = "null";
             length = 9;
             return true;
         }
-        if (slice.StartsWith("NaN", StringComparison.Ordinal)) {
+        if (MatchLiteralWord(slice, "NaN")) {
             replacement = "null";
             length = 3;
             return true;
         }
 
         return false;
+    }
+
+    // Requires a word boundary after the literal so longer identifiers like "TrueStuff" are not corrupted
+    private static bool MatchLiteralWord(ReadOnlySpan<char> slice, string word)
+    {
+        return slice.StartsWith(word, StringComparison.Ordinal)
+            && (slice.Length == word.Length || !IsIdentifierChar(slice[word.Length]));
+    }
+
+    private static bool IsIdentifierChar(char c)
+    {
+        return char.IsLetterOrDigit(c) || c is '_' or '-';
     }
 
     private static int GetNumberLength(ReadOnlySpan<char> span, int start)

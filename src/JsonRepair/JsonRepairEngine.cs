@@ -142,7 +142,7 @@ public static class JsonRepairEngine
         result = default;
         try {
             result = Deserialize<T>(malformedJson, options, jsonSerializerOptions);
-            return result is not null;
+            return true;
         }
         catch (JsonException) {
             return false;

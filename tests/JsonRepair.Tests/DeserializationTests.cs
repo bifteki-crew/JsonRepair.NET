@@ -1,11 +1,10 @@
 using System.Text.Json;
 using FluentAssertions;
-using JsonRepair.Serialization;
 using Xunit;
 
 namespace JsonRepair.Tests;
 
-public class ConverterTests
+public class DeserializationTests
 {
     public record BiftekiCrewDto(string CrewMember, bool FlameGrilled, string? SecretIngredient, int Orders);
 
