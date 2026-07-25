@@ -15,11 +15,17 @@
     <NoWarn>$(NoWarn);CA1707;CA1305</NoWarn>
 
     <!-- Package Metadata -->
-    <Authors>Antigravity Team</Authors>
-    <Company>Antigravity</Company>
-    <Copyright>Copyright (c) 2026 Antigravity Team</Copyright>
+    <Authors>Bifteki Crew</Authors>
+    <Company>Bifteki Crew</Company>
+    <Copyright>Copyright (c) 2026 Bifteki Crew</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryType>git</RepositoryType>
-    <RepositoryUrl>https://github.com/antigravity/dotnet-library-port</RepositoryUrl>
+    <RepositoryUrl>https://github.com/bifteki-crew/JsonRepair.NET</RepositoryUrl>
+
+    <!-- SourceLink: embed repository info for debugging into all projects -->
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
 </Project>

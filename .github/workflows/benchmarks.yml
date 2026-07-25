@@ -1,0 +1,21 @@
+name: Benchmarks (Manual)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  benchmarks:
+    name: BenchmarkDotNet Performance Pass
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Run BenchmarkDotNet Suite
+        run: dotnet run --project benchmarks/JsonRepair.Benchmarks -c Release
