@@ -10,6 +10,8 @@ jobs:
   check-upstream-updates:
     name: Check Upstream Version Updates
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout Code
@@ -17,11 +19,24 @@ jobs:
 
       - name: Fetch Latest Versions from Both Upstreams
         id: fetch
+        env:
+          # Authenticate to avoid the 60 req/h unauthenticated rate limit on shared runner IPs
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
           # josdejong/jsonrepair publishes git tags only (no GitHub Releases) -> poll /tags
-          JOSDEJONG_LATEST=$(curl -s "https://api.github.com/repos/josdejong/jsonrepair/tags?per_page=1" | jq -r '.[0].name')
+          JOSDEJONG_LATEST=$(gh api "repos/josdejong/jsonrepair/tags?per_page=1" --jq '.[0].name')
           # mangiucugna/json_repair publishes GitHub Releases -> poll /releases/latest
-          MANGIUCUGNA_LATEST=$(curl -s "https://api.github.com/repos/mangiucugna/json_repair/releases/latest" | jq -r '.tag_name')
+          MANGIUCUGNA_LATEST=$(gh api repos/mangiucugna/json_repair/releases/latest --jq '.tag_name')
+
+          # Fail fast on empty/null API results instead of comparing garbage
+          for v in "$JOSDEJONG_LATEST" "$MANGIUCUGNA_LATEST"; do
+            if [ -z "$v" ] || [ "$v" = "null" ]; then
+              echo "::error::Failed to fetch upstream version(s) from the GitHub API."
+              exit 1
+            fi
+          done
+
           echo "josdejong_latest=$JOSDEJONG_LATEST" >> $GITHUB_OUTPUT
           echo "mangiucugna_latest=$MANGIUCUGNA_LATEST" >> $GITHUB_OUTPUT
           echo "Latest josdejong/jsonrepair tag: $JOSDEJONG_LATEST"
