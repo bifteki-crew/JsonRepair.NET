@@ -2,6 +2,11 @@ name: Publish NuGet Package
 
 # Mirrors the bifteki-crew/arcbridge publish-dotnet.yml convention:
 # push a version tag (e.g. v0.1.0) to build, test, pack and publish to nuget.org.
+#
+# Authentication uses NuGet Trusted Publishing (OIDC) instead of a long-lived
+# API key: https://learn.microsoft.com/nuget/nuget-org/trusted-publishing
+# Prerequisite: a Trusted Publishing policy on nuget.org for
+#   owner "bifteki-crew", repo "JsonRepair.NET", workflow file "publish.yml".
 on:
   push:
     tags:
@@ -13,6 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write # required to mint the OIDC token for NuGet Trusted Publishing
 
     steps:
       - name: Checkout Code
@@ -33,7 +39,15 @@ jobs:
       - name: Pack NuGet Package
         run: dotnet pack src/JsonRepair/JsonRepair.csproj -c Release /p:Version=${{ env.PACKAGE_VERSION }} -o ./artifacts
 
-      # Pushes .nupkg; nuget.org's V3 API auto-publishes the sibling .snupkg symbol package
+      # Exchanges the GitHub OIDC token for a short-lived nuget.org API key.
+      # NUGET_USER = nuget.org profile username (not sensitive, stored as repo secret).
+      - name: NuGet Login (Trusted Publishing)
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      # nuget.org's V3 API auto-publishes the sibling .snupkg symbol package
       # (documented: https://learn.microsoft.com/nuget/create-packages/symbol-packages-snupkg)
       - name: Push to nuget.org
-        run: dotnet nuget push artifacts/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+        run: dotnet nuget push artifacts/*.nupkg --api-key ${{ steps.login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
