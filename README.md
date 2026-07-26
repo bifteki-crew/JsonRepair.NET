@@ -1,6 +1,7 @@
 # 🥩 JsonRepair.NET — Powered by Bifteki Crew 🔥
 
 [![Build & Test](https://github.com/bifteki-crew/JsonRepair.NET/actions/workflows/ci.yml/badge.svg)](https://github.com/bifteki-crew/JsonRepair.NET/actions)
+[![NuGet](https://img.shields.io/nuget/v/JsonRepair.svg)](https://www.nuget.org/packages/JsonRepair/)
 [![Framework](https://img.shields.io/badge/.NET-10.0-purple.svg)](https://dotnet.microsoft.com/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Bifteki Crew](https://img.shields.io/badge/Bifteki%20Crew-Approved%20🥩-orange.svg)](#)
