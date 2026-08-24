@@ -1,0 +1,2177 @@
+[
+ {
+  "input": "  { \n } \t ",
+  "expected": "  { \n } \t ",
+  "id": "JS001"
+ },
+ {
+  "input": "{}",
+  "expected": "{}",
+  "id": "JS002"
+ },
+ {
+  "input": "{  }",
+  "expected": "{  }",
+  "id": "JS003"
+ },
+ {
+  "input": "{\"a\": {}}",
+  "expected": "{\"a\": {}}",
+  "id": "JS004"
+ },
+ {
+  "input": "{\"a\": \"b\"}",
+  "expected": "{\"a\": \"b\"}",
+  "id": "JS005"
+ },
+ {
+  "input": "{\"a\": 2}",
+  "expected": "{\"a\": 2}",
+  "id": "JS006"
+ },
+ {
+  "input": "[]",
+  "expected": "[]",
+  "id": "JS007"
+ },
+ {
+  "input": "[  ]",
+  "expected": "[  ]",
+  "id": "JS008"
+ },
+ {
+  "input": "[1,2,3]",
+  "expected": "[1,2,3]",
+  "id": "JS009"
+ },
+ {
+  "input": "[ 1 , 2 , 3 ]",
+  "expected": "[ 1 , 2 , 3 ]",
+  "id": "JS010"
+ },
+ {
+  "input": "[1,2,[3,4,5]]",
+  "expected": "[1,2,[3,4,5]]",
+  "id": "JS011"
+ },
+ {
+  "input": "[{}]",
+  "expected": "[{}]",
+  "id": "JS012"
+ },
+ {
+  "input": "{\"a\":[]}",
+  "expected": "{\"a\":[]}",
+  "id": "JS013"
+ },
+ {
+  "input": "[1, \"hi\", true, false, null, {}, []]",
+  "expected": "[1, \"hi\", true, false, null, {}, []]",
+  "id": "JS014"
+ },
+ {
+  "input": "23",
+  "expected": "23",
+  "id": "JS015"
+ },
+ {
+  "input": "0",
+  "expected": "0",
+  "id": "JS016"
+ },
+ {
+  "input": "0e+2",
+  "expected": "0e+2",
+  "id": "JS017"
+ },
+ {
+  "input": "0.0",
+  "expected": "0.0",
+  "id": "JS018"
+ },
+ {
+  "input": "-0",
+  "expected": "-0",
+  "id": "JS019"
+ },
+ {
+  "input": "2.3",
+  "expected": "2.3",
+  "id": "JS020"
+ },
+ {
+  "input": "2300e3",
+  "expected": "2300e3",
+  "id": "JS021"
+ },
+ {
+  "input": "2300e+3",
+  "expected": "2300e+3",
+  "id": "JS022"
+ },
+ {
+  "input": "2300e-3",
+  "expected": "2300e-3",
+  "id": "JS023"
+ },
+ {
+  "input": "-2",
+  "expected": "-2",
+  "id": "JS024"
+ },
+ {
+  "input": "2e-3",
+  "expected": "2e-3",
+  "id": "JS025"
+ },
+ {
+  "input": "2.3e-3",
+  "expected": "2.3e-3",
+  "id": "JS026"
+ },
+ {
+  "input": "\"str\"",
+  "expected": "\"str\"",
+  "id": "JS027"
+ },
+ {
+  "input": "\"\\\"\\\\\\/\\b\\f\\n\\r\\t\"",
+  "expected": "\"\\\"\\\\\\/\\b\\f\\n\\r\\t\"",
+  "id": "JS028"
+ },
+ {
+  "input": "\"\\u260E\"",
+  "expected": "\"\\u260E\"",
+  "id": "JS029"
+ },
+ {
+  "input": "true",
+  "expected": "true",
+  "id": "JS030"
+ },
+ {
+  "input": "false",
+  "expected": "false",
+  "id": "JS031"
+ },
+ {
+  "input": "null",
+  "expected": "null",
+  "id": "JS032"
+ },
+ {
+  "input": "trueble",
+  "expected": "\"trueble\"",
+  "id": "JS033"
+ },
+ {
+  "input": "Trueble",
+  "expected": "\"Trueble\"",
+  "id": "JS034"
+ },
+ {
+  "input": "false_value",
+  "expected": "\"false_value\"",
+  "id": "JS035"
+ },
+ {
+  "input": "false$",
+  "expected": "\"false$\"",
+  "id": "JS036"
+ },
+ {
+  "input": "nullifiable",
+  "expected": "\"nullifiable\"",
+  "id": "JS037"
+ },
+ {
+  "input": "[truee",
+  "expected": "[\"truee\"]",
+  "id": "JS038"
+ },
+ {
+  "input": "\"\"",
+  "expected": "\"\"",
+  "id": "JS039"
+ },
+ {
+  "input": "\"[\"",
+  "expected": "\"[\"",
+  "id": "JS040"
+ },
+ {
+  "input": "\"]\"",
+  "expected": "\"]\"",
+  "id": "JS041"
+ },
+ {
+  "input": "\"{\"",
+  "expected": "\"{\"",
+  "id": "JS042"
+ },
+ {
+  "input": "\"}\"",
+  "expected": "\"}\"",
+  "id": "JS043"
+ },
+ {
+  "input": "\":\"",
+  "expected": "\":\"",
+  "id": "JS044"
+ },
+ {
+  "input": "\",\"",
+  "expected": "\",\"",
+  "id": "JS045"
+ },
+ {
+  "input": "\"\u2605\"",
+  "expected": "\"\u2605\"",
+  "id": "JS046"
+ },
+ {
+  "input": "\"\ud83d\ude00\"",
+  "expected": "\"\ud83d\ude00\"",
+  "id": "JS047"
+ },
+ {
+  "input": "\"\ud83d\ude00\"",
+  "expected": "\"\ud83d\ude00\"",
+  "id": "JS048"
+ },
+ {
+  "input": "\"\u0439\u043d\u0444\u043e\u0440\u043c\u0430\u0446\u0438\u044f\"",
+  "expected": "\"\u0439\u043d\u0444\u043e\u0440\u043c\u0430\u0446\u0438\u044f\"",
+  "id": "JS049"
+ },
+ {
+  "input": "\"\\u2605\"",
+  "expected": "\"\\u2605\"",
+  "id": "JS050"
+ },
+ {
+  "input": "\"\\u2605A\"",
+  "expected": "\"\\u2605A\"",
+  "id": "JS051"
+ },
+ {
+  "input": "\"\\ud83d\\ude00\"",
+  "expected": "\"\\ud83d\\ude00\"",
+  "id": "JS052"
+ },
+ {
+  "input": "{\"\u2605\":true}",
+  "expected": "{\"\u2605\":true}",
+  "id": "JS053"
+ },
+ {
+  "input": "{\"\ud83d\ude00\":true}",
+  "expected": "{\"\ud83d\ude00\":true}",
+  "id": "JS054"
+ },
+ {
+  "input": "{\"\ud83d\ude00\":true}",
+  "expected": "{\"\ud83d\ude00\":true}",
+  "id": "JS055"
+ },
+ {
+  "input": "abc",
+  "expected": "\"abc\"",
+  "id": "JS056"
+ },
+ {
+  "input": "hello   world",
+  "expected": "\"hello   world\"",
+  "id": "JS057"
+ },
+ {
+  "input": "{\nmessage: hello world\n}",
+  "expected": "{\n\"message\": \"hello world\"\n}",
+  "id": "JS058"
+ },
+ {
+  "input": "{a:2}",
+  "expected": "{\"a\":2}",
+  "id": "JS059"
+ },
+ {
+  "input": "{a: 2}",
+  "expected": "{\"a\": 2}",
+  "id": "JS060"
+ },
+ {
+  "input": "{2: 2}",
+  "expected": "{\"2\": 2}",
+  "id": "JS061"
+ },
+ {
+  "input": "{true: 2}",
+  "expected": "{\"true\": 2}",
+  "id": "JS062"
+ },
+ {
+  "input": "{\n  a: 2\n}",
+  "expected": "{\n  \"a\": 2\n}",
+  "id": "JS063"
+ },
+ {
+  "input": "[a,b]",
+  "expected": "[\"a\",\"b\"]",
+  "id": "JS064"
+ },
+ {
+  "input": "[\na,\nb\n]",
+  "expected": "[\n\"a\",\n\"b\"\n]",
+  "id": "JS065"
+ },
+ {
+  "input": "https://www.bible.com/",
+  "expected": "\"https://www.bible.com/\"",
+  "id": "JS066"
+ },
+ {
+  "input": "{url:https://www.bible.com/}",
+  "expected": "{\"url\":\"https://www.bible.com/\"}",
+  "id": "JS067"
+ },
+ {
+  "input": "{url:https://www.bible.com/,\"id\":2}",
+  "expected": "{\"url\":\"https://www.bible.com/\",\"id\":2}",
+  "id": "JS068"
+ },
+ {
+  "input": "[https://www.bible.com/]",
+  "expected": "[\"https://www.bible.com/\"]",
+  "id": "JS069"
+ },
+ {
+  "input": "[https://www.bible.com/,2]",
+  "expected": "[\"https://www.bible.com/\",2]",
+  "id": "JS070"
+ },
+ {
+  "input": "\"https://www.bible.com/",
+  "expected": "\"https://www.bible.com/\"",
+  "id": "JS071"
+ },
+ {
+  "input": "{\"url\":\"https://www.bible.com/}",
+  "expected": "{\"url\":\"https://www.bible.com/\"}",
+  "id": "JS072"
+ },
+ {
+  "input": "{\"url\":\"https://www.bible.com/,\"id\":2}",
+  "expected": "{\"url\":\"https://www.bible.com/\",\"id\":2}",
+  "id": "JS073"
+ },
+ {
+  "input": "[\"https://www.bible.com/]",
+  "expected": "[\"https://www.bible.com/\"]",
+  "id": "JS074"
+ },
+ {
+  "input": "[\"https://www.bible.com/,2]",
+  "expected": "[\"https://www.bible.com/\",2]",
+  "id": "JS075"
+ },
+ {
+  "input": "\"abc",
+  "expected": "\"abc\"",
+  "id": "JS076"
+ },
+ {
+  "input": "'abc",
+  "expected": "\"abc\"",
+  "id": "JS077"
+ },
+ {
+  "input": "\"12:20",
+  "expected": "\"12:20\"",
+  "id": "JS078"
+ },
+ {
+  "input": "{\"time\":\"12:20}",
+  "expected": "{\"time\":\"12:20\"}",
+  "id": "JS079"
+ },
+ {
+  "input": "{\"date\":2024-10-18T18:35:22.229Z}",
+  "expected": "{\"date\":\"2024-10-18T18:35:22.229Z\"}",
+  "id": "JS080"
+ },
+ {
+  "input": "\"She said:",
+  "expected": "\"She said:\"",
+  "id": "JS081"
+ },
+ {
+  "input": "{\"text\": \"She said:",
+  "expected": "{\"text\": \"She said:\"}",
+  "id": "JS082"
+ },
+ {
+  "input": "[\"hello, world]",
+  "expected": "[\"hello\", \"world\"]",
+  "id": "JS083"
+ },
+ {
+  "input": "[\"hello,\"world\"]",
+  "expected": "[\"hello\",\"world\"]",
+  "id": "JS084"
+ },
+ {
+  "input": "{\"a\":\"b}",
+  "expected": "{\"a\":\"b\"}",
+  "id": "JS085"
+ },
+ {
+  "input": "{\"a\":\"b,\"c\":\"d\"}",
+  "expected": "{\"a\":\"b\",\"c\":\"d\"}",
+  "id": "JS086"
+ },
+ {
+  "input": "{\"a\":\"b,c,\"d\":\"e\"}",
+  "expected": "{\"a\":\"b,c\",\"d\":\"e\"}",
+  "id": "JS087"
+ },
+ {
+  "input": "{a:\"b,c,\"d\":\"e\"}",
+  "expected": "{\"a\":\"b,c\",\"d\":\"e\"}",
+  "id": "JS088"
+ },
+ {
+  "input": "{a:\"b,c,}",
+  "expected": "{\"a\":\"b,c\"}",
+  "id": "JS089"
+ },
+ {
+  "input": "[\"b,c,]",
+  "expected": "[\"b\",\"c\"]",
+  "id": "JS090"
+ },
+ {
+  "input": "\u2018abc",
+  "expected": "\"abc\"",
+  "id": "JS091"
+ },
+ {
+  "input": "\"it's working",
+  "expected": "\"it's working\"",
+  "id": "JS092"
+ },
+ {
+  "input": "[\"abc+/*comment*/\"def\"]",
+  "expected": "[\"abcdef\"]",
+  "id": "JS093"
+ },
+ {
+  "input": "[\"abc/*comment*/+\"def\"]",
+  "expected": "[\"abcdef\"]",
+  "id": "JS094"
+ },
+ {
+  "input": "[\"abc,/*comment*/\"def\"]",
+  "expected": "[\"abc\",\"def\"]",
+  "id": "JS095"
+ },
+ {
+  "input": "\"foo",
+  "expected": "\"foo\"",
+  "id": "JS096"
+ },
+ {
+  "input": "[",
+  "expected": "[]",
+  "id": "JS097"
+ },
+ {
+  "input": "[\"foo",
+  "expected": "[\"foo\"]",
+  "id": "JS098"
+ },
+ {
+  "input": "[\"foo\"",
+  "expected": "[\"foo\"]",
+  "id": "JS099"
+ },
+ {
+  "input": "[\"foo\",",
+  "expected": "[\"foo\"]",
+  "id": "JS100"
+ },
+ {
+  "input": "{\"foo\":\"bar\"",
+  "expected": "{\"foo\":\"bar\"}",
+  "id": "JS101"
+ },
+ {
+  "input": "{\"foo\":\"bar",
+  "expected": "{\"foo\":\"bar\"}",
+  "id": "JS102"
+ },
+ {
+  "input": "{\"foo\":",
+  "expected": "{\"foo\":null}",
+  "id": "JS103"
+ },
+ {
+  "input": "{\"foo\"",
+  "expected": "{\"foo\":null}",
+  "id": "JS104"
+ },
+ {
+  "input": "{\"foo",
+  "expected": "{\"foo\":null}",
+  "id": "JS105"
+ },
+ {
+  "input": "{",
+  "expected": "{}",
+  "id": "JS106"
+ },
+ {
+  "input": "2.",
+  "expected": "2.0",
+  "id": "JS107"
+ },
+ {
+  "input": "[2.]",
+  "expected": "[2.0]",
+  "id": "JS108"
+ },
+ {
+  "input": "2e",
+  "expected": "2e0",
+  "id": "JS109"
+ },
+ {
+  "input": "2e+",
+  "expected": "2e+0",
+  "id": "JS110"
+ },
+ {
+  "input": "2e-",
+  "expected": "2e-0",
+  "id": "JS111"
+ },
+ {
+  "input": "[2e+]",
+  "expected": "[2e+0]",
+  "id": "JS112"
+ },
+ {
+  "input": "{\"foo\":\"bar\\u20",
+  "expected": "{\"foo\":\"bar\"}",
+  "id": "JS113"
+ },
+ {
+  "input": "\"\\u",
+  "expected": "\"\"",
+  "id": "JS114"
+ },
+ {
+  "input": "\"\\u2",
+  "expected": "\"\"",
+  "id": "JS115"
+ },
+ {
+  "input": "\"\\u260",
+  "expected": "\"\"",
+  "id": "JS116"
+ },
+ {
+  "input": "\"\\u2605",
+  "expected": "\"\\u2605\"",
+  "id": "JS117"
+ },
+ {
+  "input": "{\"s \\ud",
+  "expected": "{\"s\": null}",
+  "id": "JS118"
+ },
+ {
+  "input": "{\"message\": \"it's working",
+  "expected": "{\"message\": \"it's working\"}",
+  "id": "JS119"
+ },
+ {
+  "input": "{\"text\":\"Hello Sergey,I hop",
+  "expected": "{\"text\":\"Hello Sergey,I hop\"}",
+  "id": "JS120"
+ },
+ {
+  "input": "{\"message\": \"with, multiple, commma's, you see?",
+  "expected": "{\"message\": \"with, multiple, commma's, you see?\"}",
+  "id": "JS121"
+ },
+ {
+  "input": "[1,2,3,...]",
+  "expected": "[1,2,3]",
+  "id": "JS122"
+ },
+ {
+  "input": "[1, 2, 3, ... ]",
+  "expected": "[1, 2, 3  ]",
+  "id": "JS123"
+ },
+ {
+  "input": "[1,2,3,/*comment1*/.../*comment2*/]",
+  "expected": "[1,2,3]",
+  "id": "JS124"
+ },
+ {
+  "input": "[\n  1,\n  2,\n  3,\n  /*comment1*/  .../*comment2*/\n]",
+  "expected": "[\n  1,\n  2,\n  3\n    \n]",
+  "id": "JS125"
+ },
+ {
+  "input": "{\"array\":[1,2,3,...]}",
+  "expected": "{\"array\":[1,2,3]}",
+  "id": "JS126"
+ },
+ {
+  "input": "[1,2,3,...,9]",
+  "expected": "[1,2,3,9]",
+  "id": "JS127"
+ },
+ {
+  "input": "[...,7,8,9]",
+  "expected": "[7,8,9]",
+  "id": "JS128"
+ },
+ {
+  "input": "[..., 7,8,9]",
+  "expected": "[ 7,8,9]",
+  "id": "JS129"
+ },
+ {
+  "input": "[...]",
+  "expected": "[]",
+  "id": "JS130"
+ },
+ {
+  "input": "[ ... ]",
+  "expected": "[  ]",
+  "id": "JS131"
+ },
+ {
+  "input": "{\"a\":2,\"b\":3,...}",
+  "expected": "{\"a\":2,\"b\":3}",
+  "id": "JS132"
+ },
+ {
+  "input": "{\"a\":2,\"b\":3,/*comment1*/.../*comment2*/}",
+  "expected": "{\"a\":2,\"b\":3}",
+  "id": "JS133"
+ },
+ {
+  "input": "{\n  \"a\":2,\n  \"b\":3,\n  /*comment1*/.../*comment2*/\n}",
+  "expected": "{\n  \"a\":2,\n  \"b\":3\n  \n}",
+  "id": "JS134"
+ },
+ {
+  "input": "{\"a\":2,\"b\":3, ... }",
+  "expected": "{\"a\":2,\"b\":3  }",
+  "id": "JS135"
+ },
+ {
+  "input": "{\"nested\":{\"a\":2,\"b\":3, ... }}",
+  "expected": "{\"nested\":{\"a\":2,\"b\":3  }}",
+  "id": "JS136"
+ },
+ {
+  "input": "{\"a\":2,\"b\":3,...,\"z\":26}",
+  "expected": "{\"a\":2,\"b\":3,\"z\":26}",
+  "id": "JS137"
+ },
+ {
+  "input": "{...}",
+  "expected": "{}",
+  "id": "JS138"
+ },
+ {
+  "input": "{ ... }",
+  "expected": "{  }",
+  "id": "JS139"
+ },
+ {
+  "input": "abc\"",
+  "expected": "\"abc\"",
+  "id": "JS140"
+ },
+ {
+  "input": "[a\",\"b\"]",
+  "expected": "[\"a\",\"b\"]",
+  "id": "JS141"
+ },
+ {
+  "input": "[a\",b\"]",
+  "expected": "[\"a\",\"b\"]",
+  "id": "JS142"
+ },
+ {
+  "input": "{\"a\":\"foo\",\"b\":\"bar\"}",
+  "expected": "{\"a\":\"foo\",\"b\":\"bar\"}",
+  "id": "JS143"
+ },
+ {
+  "input": "{a\":\"foo\",\"b\":\"bar\"}",
+  "expected": "{\"a\":\"foo\",\"b\":\"bar\"}",
+  "id": "JS144"
+ },
+ {
+  "input": "{\"a\":\"foo\",b\":\"bar\"}",
+  "expected": "{\"a\":\"foo\",\"b\":\"bar\"}",
+  "id": "JS145"
+ },
+ {
+  "input": "{\"a\":foo\",\"b\":\"bar\"}",
+  "expected": "{\"a\":\"foo\",\"b\":\"bar\"}",
+  "id": "JS146"
+ },
+ {
+  "input": "[\n\"abc,\n\"def\"\n]",
+  "expected": "[\n\"abc\",\n\"def\"\n]",
+  "id": "JS147"
+ },
+ {
+  "input": "[\n\"abc,  \n\"def\"\n]",
+  "expected": "[\n\"abc\",  \n\"def\"\n]",
+  "id": "JS148"
+ },
+ {
+  "input": "[\"abc]\n",
+  "expected": "[\"abc\"]\n",
+  "id": "JS149"
+ },
+ {
+  "input": "[\"abc  ]\n",
+  "expected": "[\"abc\"  ]\n",
+  "id": "JS150"
+ },
+ {
+  "input": "[\n[\n\"abc\n]\n]\n",
+  "expected": "[\n[\n\"abc\"\n]\n]\n",
+  "id": "JS151"
+ },
+ {
+  "input": "{'a':2}",
+  "expected": "{\"a\":2}",
+  "id": "JS152"
+ },
+ {
+  "input": "{'a':'foo'}",
+  "expected": "{\"a\":\"foo\"}",
+  "id": "JS153"
+ },
+ {
+  "input": "{\"a\":'foo'}",
+  "expected": "{\"a\":\"foo\"}",
+  "id": "JS154"
+ },
+ {
+  "input": "{a:'foo',b:'bar'}",
+  "expected": "{\"a\":\"foo\",\"b\":\"bar\"}",
+  "id": "JS155"
+ },
+ {
+  "input": "{\u201ca\u201d:\u201cb\u201d}",
+  "expected": "{\"a\":\"b\"}",
+  "id": "JS156"
+ },
+ {
+  "input": "{\u2018a\u2019:\u2018b\u2019}",
+  "expected": "{\"a\":\"b\"}",
+  "id": "JS157"
+ },
+ {
+  "input": "{`a\u00b4:`b\u00b4}",
+  "expected": "{\"a\":\"b\"}",
+  "id": "JS158"
+ },
+ {
+  "input": "\"Rounded \u201c quote\"",
+  "expected": "\"Rounded \u201c quote\"",
+  "id": "JS159"
+ },
+ {
+  "input": "'Rounded \u201c quote'",
+  "expected": "\"Rounded \u201c quote\"",
+  "id": "JS160"
+ },
+ {
+  "input": "\"Rounded \u2019 quote\"",
+  "expected": "\"Rounded \u2019 quote\"",
+  "id": "JS161"
+ },
+ {
+  "input": "'Rounded \u2019 quote'",
+  "expected": "\"Rounded \u2019 quote\"",
+  "id": "JS162"
+ },
+ {
+  "input": "'Double \" quote'",
+  "expected": "\"Double \\\" quote\"",
+  "id": "JS163"
+ },
+ {
+  "input": "{pattern: '\u2019'}",
+  "expected": "{\"pattern\": \"\u2019\"}",
+  "id": "JS164"
+ },
+ {
+  "input": "\"{a:b}\"",
+  "expected": "\"{a:b}\"",
+  "id": "JS165"
+ },
+ {
+  "input": "\"foo'bar\"",
+  "expected": "\"foo'bar\"",
+  "id": "JS166"
+ },
+ {
+  "input": "\"foo\\\"bar\"",
+  "expected": "\"foo\\\"bar\"",
+  "id": "JS167"
+ },
+ {
+  "input": "'foo\"bar'",
+  "expected": "\"foo\\\"bar\"",
+  "id": "JS168"
+ },
+ {
+  "input": "'foo\\'bar'",
+  "expected": "\"foo'bar\"",
+  "id": "JS169"
+ },
+ {
+  "input": "\"foo\\'bar\"",
+  "expected": "\"foo'bar\"",
+  "id": "JS170"
+ },
+ {
+  "input": "\"\\a\"",
+  "expected": "\"a\"",
+  "id": "JS171"
+ },
+ {
+  "input": "\"first\\\nsecond\"",
+  "expected": "\"first\\nsecond\"",
+  "id": "JS172"
+ },
+ {
+  "input": "[\"y\"\\, \"z\"]",
+  "expected": null,
+  "id": "JS173"
+ },
+ {
+  "input": "[\"y\", \"z\"\\]",
+  "expected": null,
+  "id": "JS174"
+ },
+ {
+  "input": "[\"y\" \\, \"z\"]",
+  "expected": null,
+  "id": "JS175"
+ },
+ {
+  "input": "[\"y\", \"z\"]\\",
+  "expected": null,
+  "id": "JS176"
+ },
+ {
+  "input": "[\"y\",\\\\ \"z\"]",
+  "expected": null,
+  "id": "JS177"
+ },
+ {
+  "input": "[[\"y\"],\\[\"z\"]]",
+  "expected": null,
+  "id": "JS178"
+ },
+ {
+  "input": "\"y\"\\, \"z\"",
+  "expected": null,
+  "id": "JS179"
+ },
+ {
+  "input": "{\"a\": \"y\"\\, \"b\"\\: \"z\"}",
+  "expected": null,
+  "id": "JS180"
+ },
+ {
+  "input": "{\"a\":}",
+  "expected": "{\"a\":null}",
+  "id": "JS181"
+ },
+ {
+  "input": "{\"a\":,\"b\":2}",
+  "expected": "{\"a\":null,\"b\":2}",
+  "id": "JS182"
+ },
+ {
+  "input": "{\"a\":",
+  "expected": "{\"a\":null}",
+  "id": "JS183"
+ },
+ {
+  "input": "{\"a\":undefined}",
+  "expected": "{\"a\":null}",
+  "id": "JS184"
+ },
+ {
+  "input": "[undefined]",
+  "expected": "[null]",
+  "id": "JS185"
+ },
+ {
+  "input": "undefined",
+  "expected": "null",
+  "id": "JS186"
+ },
+ {
+  "input": "\"hello\bworld\"",
+  "expected": "\"hello\\bworld\"",
+  "id": "JS187"
+ },
+ {
+  "input": "\"hello\fworld\"",
+  "expected": "\"hello\\fworld\"",
+  "id": "JS188"
+ },
+ {
+  "input": "\"hello\nworld\"",
+  "expected": "\"hello\\nworld\"",
+  "id": "JS189"
+ },
+ {
+  "input": "\"hello\rworld\"",
+  "expected": "\"hello\\rworld\"",
+  "id": "JS190"
+ },
+ {
+  "input": "\"hello\tworld\"",
+  "expected": "\"hello\\tworld\"",
+  "id": "JS191"
+ },
+ {
+  "input": "{\"key\nafter\": \"foo\"}",
+  "expected": "{\"key\\nafter\": \"foo\"}",
+  "id": "JS192"
+ },
+ {
+  "input": "[\"hello\nworld\"]",
+  "expected": "[\"hello\\nworld\"]",
+  "id": "JS193"
+ },
+ {
+  "input": "[\"hello\nworld\"  ]",
+  "expected": "[\"hello\\nworld\"  ]",
+  "id": "JS194"
+ },
+ {
+  "input": "[\"hello\nworld\"\n]",
+  "expected": "[\"hello\\nworld\"\n]",
+  "id": "JS195"
+ },
+ {
+  "input": "\"The TV has a 24\" screen\"",
+  "expected": "\"The TV has a 24\\\" screen\"",
+  "id": "JS196"
+ },
+ {
+  "input": "{\"key\": \"apple \"bee\" carrot\"}",
+  "expected": "{\"key\": \"apple \\\"bee\\\" carrot\"}",
+  "id": "JS197"
+ },
+ {
+  "input": "[\",\",\":\"]",
+  "expected": "[\",\",\":\"]",
+  "id": "JS198"
+ },
+ {
+  "input": "[\"a\" 2]",
+  "expected": "[\"a\", 2]",
+  "id": "JS199"
+ },
+ {
+  "input": "[\"a\" 2",
+  "expected": "[\"a\", 2]",
+  "id": "JS200"
+ },
+ {
+  "input": "[\",\" 2",
+  "expected": "[\",\", 2]",
+  "id": "JS201"
+ },
+ {
+  "input": "{ \"height\": \"(5'3\")\" }",
+  "expected": "{ \"height\": \"(5'3\\\")\" }",
+  "id": "JS202"
+ },
+ {
+  "input": "\"The TV is 72\"\"",
+  "expected": "\"The TV is 72\\\"\"",
+  "id": "JS203"
+ },
+ {
+  "input": "\"He is six feet (72\") tall\"",
+  "expected": "\"He is six feet (72\\\") tall\"",
+  "id": "JS204"
+ },
+ {
+  "input": "\"a (b) ((c\") d)\"",
+  "expected": "\"a (b) ((c\\\") d)\"",
+  "id": "JS205"
+ },
+ {
+  "input": "\"He (52) is six feet ((72\")) tall\"",
+  "expected": "\"He (52) is six feet ((72\\\")) tall\"",
+  "id": "JS206"
+ },
+ {
+  "input": "\"the list [1, 2\"] more\"",
+  "expected": "\"the list [1, 2\\\"] more\"",
+  "id": "JS207"
+ },
+ {
+  "input": "\"the set {a, b\"} more\"",
+  "expected": "\"the set {a, b\\\"} more\"",
+  "id": "JS208"
+ },
+ {
+  "input": "[\"foo)\" 2]",
+  "expected": "[\"foo)\", 2]",
+  "id": "JS209"
+ },
+ {
+  "input": "{\"a\":\u00a0\"foo\u00a0bar\"}",
+  "expected": "{\"a\": \"foo\u00a0bar\"}",
+  "id": "JS210"
+ },
+ {
+  "input": "{\"a\":\u180e\"foo\"}",
+  "expected": "{\"a\": \"foo\"}",
+  "id": "JS211"
+ },
+ {
+  "input": "{\"a\":\u2000\"foo\"}",
+  "expected": "{\"a\": \"foo\"}",
+  "id": "JS212"
+ },
+ {
+  "input": "{\"a\":\u2002\"foo\"}",
+  "expected": "{\"a\": \"foo\"}",
+  "id": "JS213"
+ },
+ {
+  "input": "{\"a\":\u200b\"foo\"}",
+  "expected": "{\"a\": \"foo\"}",
+  "id": "JS214"
+ },
+ {
+  "input": "{\"a\":\u202f\"foo\"}",
+  "expected": "{\"a\": \"foo\"}",
+  "id": "JS215"
+ },
+ {
+  "input": "{\"a\":\u205f\"foo\"}",
+  "expected": "{\"a\": \"foo\"}",
+  "id": "JS216"
+ },
+ {
+  "input": "{\"a\":\u3000\"foo\"}",
+  "expected": "{\"a\": \"foo\"}",
+  "id": "JS217"
+ },
+ {
+  "input": "{\"a\":\ufeff\"foo\"}",
+  "expected": "{\"a\": \"foo\"}",
+  "id": "JS218"
+ },
+ {
+  "input": "\u2018foo\u2019",
+  "expected": "\"foo\"",
+  "id": "JS219"
+ },
+ {
+  "input": "\u201cfoo\u201d",
+  "expected": "\"foo\"",
+  "id": "JS220"
+ },
+ {
+  "input": "`foo\u00b4",
+  "expected": "\"foo\"",
+  "id": "JS221"
+ },
+ {
+  "input": "`foo'",
+  "expected": "\"foo\"",
+  "id": "JS222"
+ },
+ {
+  "input": "/* foo */ {}",
+  "expected": " {}",
+  "id": "JS223"
+ },
+ {
+  "input": "{} /* foo */ ",
+  "expected": "{}  ",
+  "id": "JS224"
+ },
+ {
+  "input": "{} /* foo ",
+  "expected": "{} ",
+  "id": "JS225"
+ },
+ {
+  "input": "\n/* foo */\n{}",
+  "expected": "\n\n{}",
+  "id": "JS226"
+ },
+ {
+  "input": "{\"a\":\"foo\",/*hello*/\"b\":\"bar\"}",
+  "expected": "{\"a\":\"foo\",\"b\":\"bar\"}",
+  "id": "JS227"
+ },
+ {
+  "input": "{\"flag\":/*boolean*/true}",
+  "expected": "{\"flag\":true}",
+  "id": "JS228"
+ },
+ {
+  "input": "{} // comment",
+  "expected": "{} ",
+  "id": "JS229"
+ },
+ {
+  "input": "{\n\"a\":\"foo\",//hello\n\"b\":\"bar\"\n}",
+  "expected": "{\n\"a\":\"foo\",\n\"b\":\"bar\"\n}",
+  "id": "JS230"
+ },
+ {
+  "input": "\"/* foo */\"",
+  "expected": "\"/* foo */\"",
+  "id": "JS231"
+ },
+ {
+  "input": "[\"a\"/* foo */]",
+  "expected": "[\"a\"]",
+  "id": "JS232"
+ },
+ {
+  "input": "[\"(a)\"/* foo */]",
+  "expected": "[\"(a)\"]",
+  "id": "JS233"
+ },
+ {
+  "input": "[\"a]\"/* foo */]",
+  "expected": "[\"a]\"]",
+  "id": "JS234"
+ },
+ {
+  "input": "{\"a\":\"b\"/* foo */}",
+  "expected": "{\"a\":\"b\"}",
+  "id": "JS235"
+ },
+ {
+  "input": "{\"a\":\"(b)\"/* foo */}",
+  "expected": "{\"a\":\"(b)\"}",
+  "id": "JS236"
+ },
+ {
+  "input": "callback_123({});",
+  "expected": "{}",
+  "id": "JS237"
+ },
+ {
+  "input": "callback_123([]);",
+  "expected": "[]",
+  "id": "JS238"
+ },
+ {
+  "input": "callback_123(2);",
+  "expected": "2",
+  "id": "JS239"
+ },
+ {
+  "input": "callback_123(\"foo\");",
+  "expected": "\"foo\"",
+  "id": "JS240"
+ },
+ {
+  "input": "callback_123(null);",
+  "expected": "null",
+  "id": "JS241"
+ },
+ {
+  "input": "callback_123(true);",
+  "expected": "true",
+  "id": "JS242"
+ },
+ {
+  "input": "callback_123(false);",
+  "expected": "false",
+  "id": "JS243"
+ },
+ {
+  "input": "callback({}",
+  "expected": "{}",
+  "id": "JS244"
+ },
+ {
+  "input": "/* foo bar */ callback_123 ({})",
+  "expected": " {}",
+  "id": "JS245"
+ },
+ {
+  "input": "/* foo bar */\ncallback_123({})",
+  "expected": "\n{}",
+  "id": "JS246"
+ },
+ {
+  "input": "/* foo bar */ callback_123 (  {}  )",
+  "expected": "   {}  ",
+  "id": "JS247"
+ },
+ {
+  "input": "  /* foo bar */   callback_123({});  ",
+  "expected": "     {}  ",
+  "id": "JS248"
+ },
+ {
+  "input": "\n/* foo\nbar */\ncallback_123 ({});\n\n",
+  "expected": "\n\n{}\n\n",
+  "id": "JS249"
+ },
+ {
+  "input": "```\n{\"a\":\"b\"}\n```",
+  "expected": "\n{\"a\":\"b\"}\n",
+  "id": "JS250"
+ },
+ {
+  "input": "```json\n{\"a\":\"b\"}\n```",
+  "expected": "\n{\"a\":\"b\"}\n",
+  "id": "JS251"
+ },
+ {
+  "input": "```\n{\"a\":\"b\"}\n",
+  "expected": "\n{\"a\":\"b\"}\n",
+  "id": "JS252"
+ },
+ {
+  "input": "\n{\"a\":\"b\"}\n```",
+  "expected": "\n{\"a\":\"b\"}\n",
+  "id": "JS253"
+ },
+ {
+  "input": "```{\"a\":\"b\"}```",
+  "expected": "{\"a\":\"b\"}",
+  "id": "JS254"
+ },
+ {
+  "input": "```\n[1,2,3]\n```",
+  "expected": "\n[1,2,3]\n",
+  "id": "JS255"
+ },
+ {
+  "input": "```python\n{\"a\":\"b\"}\n```",
+  "expected": "\n{\"a\":\"b\"}\n",
+  "id": "JS256"
+ },
+ {
+  "input": "\n ```json\n{\"a\":\"b\"}\n```\n  ",
+  "expected": "\n \n{\"a\":\"b\"}\n\n  ",
+  "id": "JS257"
+ },
+ {
+  "input": "[```\n{\"a\":\"b\"}\n```]",
+  "expected": "\n{\"a\":\"b\"}\n",
+  "id": "JS258"
+ },
+ {
+  "input": "[```json\n{\"a\":\"b\"}\n```]",
+  "expected": "\n{\"a\":\"b\"}\n",
+  "id": "JS259"
+ },
+ {
+  "input": "{```\n{\"a\":\"b\"}\n```}",
+  "expected": "\n{\"a\":\"b\"}\n",
+  "id": "JS260"
+ },
+ {
+  "input": "{```json\n{\"a\":\"b\"}\n```}",
+  "expected": "\n{\"a\":\"b\"}\n",
+  "id": "JS261"
+ },
+ {
+  "input": "\\\"hello world\\\"",
+  "expected": "\"hello world\"",
+  "id": "JS262"
+ },
+ {
+  "input": "\\\"hello world\\",
+  "expected": "\"hello world\"",
+  "id": "JS263"
+ },
+ {
+  "input": "\\\"hello \\\\\"world\\\\\"\\\"",
+  "expected": "\"hello \\\"world\\\"\"",
+  "id": "JS264"
+ },
+ {
+  "input": "[\\\"hello \\\\\"world\\\\\"\\\"]",
+  "expected": "[\"hello \\\"world\\\"\"]",
+  "id": "JS265"
+ },
+ {
+  "input": "{\\\"stringified\\\": \\\"hello \\\\\"world\\\\\"\\\"}",
+  "expected": "{\"stringified\": \"hello \\\"world\\\"\"}",
+  "id": "JS266"
+ },
+ {
+  "input": "\\\"hello\"",
+  "expected": "\"hello\"",
+  "id": "JS267"
+ },
+ {
+  "input": "[,1,2,3]",
+  "expected": "[1,2,3]",
+  "id": "JS268"
+ },
+ {
+  "input": "[/* a */,/* b */1,2,3]",
+  "expected": "[1,2,3]",
+  "id": "JS269"
+ },
+ {
+  "input": "[, 1,2,3]",
+  "expected": "[ 1,2,3]",
+  "id": "JS270"
+ },
+ {
+  "input": "[ , 1,2,3]",
+  "expected": "[  1,2,3]",
+  "id": "JS271"
+ },
+ {
+  "input": "{,\"message\": \"hi\"}",
+  "expected": "{\"message\": \"hi\"}",
+  "id": "JS272"
+ },
+ {
+  "input": "{/* a */,/* b */\"message\": \"hi\"}",
+  "expected": "{\"message\": \"hi\"}",
+  "id": "JS273"
+ },
+ {
+  "input": "{ ,\"message\": \"hi\"}",
+  "expected": "{ \"message\": \"hi\"}",
+  "id": "JS274"
+ },
+ {
+  "input": "{, \"message\": \"hi\"}",
+  "expected": "{ \"message\": \"hi\"}",
+  "id": "JS275"
+ },
+ {
+  "input": "[1,2,3,]",
+  "expected": "[1,2,3]",
+  "id": "JS276"
+ },
+ {
+  "input": "[1,2,3,\n]",
+  "expected": "[1,2,3\n]",
+  "id": "JS277"
+ },
+ {
+  "input": "[1,2,3,  \n  ]",
+  "expected": "[1,2,3  \n  ]",
+  "id": "JS278"
+ },
+ {
+  "input": "[1,2,3,/*foo*/]",
+  "expected": "[1,2,3]",
+  "id": "JS279"
+ },
+ {
+  "input": "{\"array\":[1,2,3,]}",
+  "expected": "{\"array\":[1,2,3]}",
+  "id": "JS280"
+ },
+ {
+  "input": "\"[1,2,3,]\"",
+  "expected": "\"[1,2,3,]\"",
+  "id": "JS281"
+ },
+ {
+  "input": "{\"a\":2,}",
+  "expected": "{\"a\":2}",
+  "id": "JS282"
+ },
+ {
+  "input": "{\"a\":2  ,  }",
+  "expected": "{\"a\":2    }",
+  "id": "JS283"
+ },
+ {
+  "input": "{\"a\":2  , \n }",
+  "expected": "{\"a\":2   \n }",
+  "id": "JS284"
+ },
+ {
+  "input": "{\"a\":2/*foo*/,/*foo*/}",
+  "expected": "{\"a\":2}",
+  "id": "JS285"
+ },
+ {
+  "input": "{},",
+  "expected": "{}",
+  "id": "JS286"
+ },
+ {
+  "input": "\"{a:2,}\"",
+  "expected": "\"{a:2,}\"",
+  "id": "JS287"
+ },
+ {
+  "input": "4,",
+  "expected": "4",
+  "id": "JS288"
+ },
+ {
+  "input": "4 ,",
+  "expected": "4 ",
+  "id": "JS289"
+ },
+ {
+  "input": "4 , ",
+  "expected": "4  ",
+  "id": "JS290"
+ },
+ {
+  "input": "{\"a\":2},",
+  "expected": "{\"a\":2}",
+  "id": "JS291"
+ },
+ {
+  "input": "[1,2,3],",
+  "expected": "[1,2,3]",
+  "id": "JS292"
+ },
+ {
+  "input": "{\"a\":2",
+  "expected": "{\"a\":2}",
+  "id": "JS293"
+ },
+ {
+  "input": "{\"a\":2,",
+  "expected": "{\"a\":2}",
+  "id": "JS294"
+ },
+ {
+  "input": "{\"a\":{\"b\":2}",
+  "expected": "{\"a\":{\"b\":2}}",
+  "id": "JS295"
+ },
+ {
+  "input": "{\n  \"a\":{\"b\":2\n}",
+  "expected": "{\n  \"a\":{\"b\":2\n}}",
+  "id": "JS296"
+ },
+ {
+  "input": "[{\"b\":2]",
+  "expected": "[{\"b\":2}]",
+  "id": "JS297"
+ },
+ {
+  "input": "[{\"b\":2\n]",
+  "expected": "[{\"b\":2}\n]",
+  "id": "JS298"
+ },
+ {
+  "input": "[{\"i\":1{\"i\":2}]",
+  "expected": "[{\"i\":1},{\"i\":2}]",
+  "id": "JS299"
+ },
+ {
+  "input": "[{\"i\":1,{\"i\":2}]",
+  "expected": "[{\"i\":1},{\"i\":2}]",
+  "id": "JS300"
+ },
+ {
+  "input": "[{{]",
+  "expected": "[{},{}]",
+  "id": "JS301"
+ },
+ {
+  "input": "{\"a\": 1}}",
+  "expected": "{\"a\": 1}",
+  "id": "JS302"
+ },
+ {
+  "input": "{\"a\": 1}}]}",
+  "expected": "{\"a\": 1}",
+  "id": "JS303"
+ },
+ {
+  "input": "{\"a\": 1 }  }  ]  }  ",
+  "expected": "{\"a\": 1 }        ",
+  "id": "JS304"
+ },
+ {
+  "input": "{\"a\":2]",
+  "expected": "{\"a\":2}",
+  "id": "JS305"
+ },
+ {
+  "input": "{\"a\":2,]",
+  "expected": "{\"a\":2}",
+  "id": "JS306"
+ },
+ {
+  "input": "{}}",
+  "expected": "{}",
+  "id": "JS307"
+ },
+ {
+  "input": "[2,}",
+  "expected": "[2]",
+  "id": "JS308"
+ },
+ {
+  "input": "[}",
+  "expected": "[]",
+  "id": "JS309"
+ },
+ {
+  "input": "{]",
+  "expected": "{}",
+  "id": "JS310"
+ },
+ {
+  "input": "[1,2,3",
+  "expected": "[1,2,3]",
+  "id": "JS311"
+ },
+ {
+  "input": "[1,2,3,",
+  "expected": "[1,2,3]",
+  "id": "JS312"
+ },
+ {
+  "input": "[[1,2,3,",
+  "expected": "[[1,2,3]]",
+  "id": "JS313"
+ },
+ {
+  "input": "{\n\"values\":[1,2,3\n}",
+  "expected": "{\n\"values\":[1,2,3]\n}",
+  "id": "JS314"
+ },
+ {
+  "input": "{\n\"values\":[1,2,3\n",
+  "expected": "{\n\"values\":[1,2,3]}\n",
+  "id": "JS315"
+ },
+ {
+  "input": "[1,[}]",
+  "expected": "[1,[]]",
+  "id": "JS316"
+ },
+ {
+  "input": "{\"a\": 1, \"b\": [}",
+  "expected": "{\"a\": 1, \"b\": []}",
+  "id": "JS317"
+ },
+ {
+  "input": "NumberLong(\"2\")",
+  "expected": "\"2\"",
+  "id": "JS318"
+ },
+ {
+  "input": "{\"_id\":ObjectId(\"123\")}",
+  "expected": "{\"_id\":\"123\"}",
+  "id": "JS319"
+ },
+ {
+  "input": "hello world",
+  "expected": "\"hello world\"",
+  "id": "JS320"
+ },
+ {
+  "input": "She said: no way",
+  "expected": "\"She said: no way\"",
+  "id": "JS321"
+ },
+ {
+  "input": "[\"This is C(2)\", \"This is F(3)]",
+  "expected": "[\"This is C(2)\", \"This is F(3)\"]",
+  "id": "JS322"
+ },
+ {
+  "input": "[\"This is C(2)\", This is F(3)]",
+  "expected": "[\"This is C(2)\", \"This is F(3)\"]",
+  "id": "JS323"
+ },
+ {
+  "input": "True",
+  "expected": "true",
+  "id": "JS324"
+ },
+ {
+  "input": "False",
+  "expected": "false",
+  "id": "JS325"
+ },
+ {
+  "input": "None",
+  "expected": "null",
+  "id": "JS326"
+ },
+ {
+  "input": "foo",
+  "expected": "\"foo\"",
+  "id": "JS327"
+ },
+ {
+  "input": "[1,foo,4]",
+  "expected": "[1,\"foo\",4]",
+  "id": "JS328"
+ },
+ {
+  "input": "{foo: bar}",
+  "expected": "{\"foo\": \"bar\"}",
+  "id": "JS329"
+ },
+ {
+  "input": "foo 2 bar",
+  "expected": "\"foo 2 bar\"",
+  "id": "JS330"
+ },
+ {
+  "input": "{greeting: hello world}",
+  "expected": "{\"greeting\": \"hello world\"}",
+  "id": "JS331"
+ },
+ {
+  "input": "{greeting: hello world\nnext: \"line\"}",
+  "expected": "{\"greeting\": \"hello world\",\n\"next\": \"line\"}",
+  "id": "JS332"
+ },
+ {
+  "input": "{greeting: hello world!}",
+  "expected": "{\"greeting\": \"hello world!\"}",
+  "id": "JS333"
+ },
+ {
+  "input": ".3",
+  "expected": "0.3",
+  "id": "JS334"
+ },
+ {
+  "input": "-.3",
+  "expected": "-0.3",
+  "id": "JS335"
+ },
+ {
+  "input": "-",
+  "expected": "-0",
+  "id": "JS336"
+ },
+ {
+  "input": "ES2020",
+  "expected": "\"ES2020\"",
+  "id": "JS337"
+ },
+ {
+  "input": "0.0.1",
+  "expected": "\"0.0.1\"",
+  "id": "JS338"
+ },
+ {
+  "input": "746de9ad-d4ff-4c66-97d7-00a92ad46967",
+  "expected": "\"746de9ad-d4ff-4c66-97d7-00a92ad46967\"",
+  "id": "JS339"
+ },
+ {
+  "input": "234..5",
+  "expected": "\"234..5\"",
+  "id": "JS340"
+ },
+ {
+  "input": "[0.0.1,2]",
+  "expected": "[\"0.0.1\",2]",
+  "id": "JS341"
+ },
+ {
+  "input": "[2 0.0.1 2]",
+  "expected": "[2, \"0.0.1 2\"]",
+  "id": "JS342"
+ },
+ {
+  "input": "2e3.4",
+  "expected": "\"2e3.4\"",
+  "id": "JS343"
+ },
+ {
+  "input": "00.",
+  "expected": "\"00.\"",
+  "id": "JS344"
+ },
+ {
+  "input": "-05",
+  "expected": "\"-05\"",
+  "id": "JS345"
+ },
+ {
+  "input": "e",
+  "expected": "\"e\"",
+  "id": "JS346"
+ },
+ {
+  "input": "[e],",
+  "expected": "[\"e\"]",
+  "id": "JS347"
+ },
+ {
+  "input": "[e5],",
+  "expected": "[\"e5\"]",
+  "id": "JS348"
+ },
+ {
+  "input": "[-e5],",
+  "expected": "[\"-e5\"]",
+  "id": "JS349"
+ },
+ {
+  "input": "{\"k\": e},",
+  "expected": "{\"k\": \"e\"}",
+  "id": "JS350"
+ },
+ {
+  "input": "{\"n\": 05}",
+  "expected": "{\"n\": \"05\"}",
+  "id": "JS351"
+ },
+ {
+  "input": "[05e]",
+  "expected": "[\"05e\"]",
+  "id": "JS352"
+ },
+ {
+  "input": ".",
+  "expected": "0.0",
+  "id": "JS353"
+ },
+ {
+  "input": "{regex: /standalone-styles.css/}",
+  "expected": "{\"regex\": \"/standalone-styles.css/\"}",
+  "id": "JS354"
+ },
+ {
+  "input": "/[a-z]_/",
+  "expected": "\"/[a-z]_/\"",
+  "id": "JS355"
+ },
+ {
+  "input": "/foo\"; console.log(-1); \"/",
+  "expected": "\"/foo\\\"; console.log(-1); \\\"/\"",
+  "id": "JS356"
+ },
+ {
+  "input": "\"hello\" + \" world\"",
+  "expected": "\"hello world\"",
+  "id": "JS357"
+ },
+ {
+  "input": "\"hello\" +\n \" world\"",
+  "expected": "\"hello world\"",
+  "id": "JS358"
+ },
+ {
+  "input": "\"a\"+\"b\"+\"c\"",
+  "expected": "\"abc\"",
+  "id": "JS359"
+ },
+ {
+  "input": "\"hello\" + /*comment*/ \" world\"",
+  "expected": "\"hello world\"",
+  "id": "JS360"
+ },
+ {
+  "input": "{\n  \"greeting\": 'hello' +\n 'world'\n}",
+  "expected": "{\n  \"greeting\": \"helloworld\"\n}",
+  "id": "JS361"
+ },
+ {
+  "input": "\"hello +\n \" world\"",
+  "expected": "\"hello world\"",
+  "id": "JS362"
+ },
+ {
+  "input": "\"hello +",
+  "expected": "\"hello\"",
+  "id": "JS363"
+ },
+ {
+  "input": "[\"hello +]",
+  "expected": "[\"hello\"]",
+  "id": "JS364"
+ },
+ {
+  "input": "{\"array\": [{}{}]}",
+  "expected": "{\"array\": [{},{}]}",
+  "id": "JS365"
+ },
+ {
+  "input": "{\"array\": [{}\n{}]}",
+  "expected": "{\"array\": [{},\n{}]}",
+  "id": "JS366"
+ },
+ {
+  "input": "{\"array\": [\n{}\n{}\n]}",
+  "expected": "{\"array\": [\n{},\n{}\n]}",
+  "id": "JS367"
+ },
+ {
+  "input": "{\"array\": [\n1\n2\n]}",
+  "expected": "{\"array\": [\n1,\n2\n]}",
+  "id": "JS368"
+ },
+ {
+  "input": "{\"array\": [\n\"a\"\n\"b\"\n]}",
+  "expected": "{\"array\": [\n\"a\",\n\"b\"\n]}",
+  "id": "JS369"
+ },
+ {
+  "input": "[\n{},\n{}\n]",
+  "expected": "[\n{},\n{}\n]",
+  "id": "JS370"
+ },
+ {
+  "input": "{\"a\":2\n\"b\":3\n}",
+  "expected": "{\"a\":2,\n\"b\":3\n}",
+  "id": "JS371"
+ },
+ {
+  "input": "{\"a\":2\n\"b\":3\nc:4}",
+  "expected": "{\"a\":2,\n\"b\":3,\n\"c\":4}",
+  "id": "JS372"
+ },
+ {
+  "input": "{\n  \"firstName\": \"John\"\n  lastName: Smith",
+  "expected": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Smith\"}",
+  "id": "JS373"
+ },
+ {
+  "input": "{\n  \"firstName\": \"John\" /* comment */ \n  lastName: Smith",
+  "expected": "{\n  \"firstName\": \"John\",  \n  \"lastName\": \"Smith\"}",
+  "id": "JS374"
+ },
+ {
+  "input": "{\n  \"firstName\": \"John\"\n  ,  lastName: Smith",
+  "expected": "{\n  \"firstName\": \"John\"\n  ,  \"lastName\": \"Smith\"}",
+  "id": "JS375"
+ },
+ {
+  "input": "{\"a\":2.",
+  "expected": "{\"a\":2.0}",
+  "id": "JS376"
+ },
+ {
+  "input": "{\"a\":2e",
+  "expected": "{\"a\":2e0}",
+  "id": "JS377"
+ },
+ {
+  "input": "{\"a\":2e-",
+  "expected": "{\"a\":2e-0}",
+  "id": "JS378"
+ },
+ {
+  "input": "{\"a\":-",
+  "expected": "{\"a\":-0}",
+  "id": "JS379"
+ },
+ {
+  "input": "[2e,",
+  "expected": "[2e0]",
+  "id": "JS380"
+ },
+ {
+  "input": "[2e ",
+  "expected": "[2e0] ",
+  "id": "JS381"
+ },
+ {
+  "input": "[-,",
+  "expected": "[-0]",
+  "id": "JS382"
+ },
+ {
+  "input": "{\"a\" \"b\"}",
+  "expected": "{\"a\": \"b\"}",
+  "id": "JS383"
+ },
+ {
+  "input": "{\"a\" 2}",
+  "expected": "{\"a\": 2}",
+  "id": "JS384"
+ },
+ {
+  "input": "{\"a\" true}",
+  "expected": "{\"a\": true}",
+  "id": "JS385"
+ },
+ {
+  "input": "{\"a\" false}",
+  "expected": "{\"a\": false}",
+  "id": "JS386"
+ },
+ {
+  "input": "{\"a\" null}",
+  "expected": "{\"a\": null}",
+  "id": "JS387"
+ },
+ {
+  "input": "{\"a\"2}",
+  "expected": "{\"a\":2}",
+  "id": "JS388"
+ },
+ {
+  "input": "{\n\"a\" \"b\"\n}",
+  "expected": "{\n\"a\": \"b\"\n}",
+  "id": "JS389"
+ },
+ {
+  "input": "{\"a\" 'b'}",
+  "expected": "{\"a\": \"b\"}",
+  "id": "JS390"
+ },
+ {
+  "input": "{'a' 'b'}",
+  "expected": "{\"a\": \"b\"}",
+  "id": "JS391"
+ },
+ {
+  "input": "{\u201ca\u201d \u201cb\u201d}",
+  "expected": "{\"a\": \"b\"}",
+  "id": "JS392"
+ },
+ {
+  "input": "{a 'b'}",
+  "expected": "{\"a\": \"b\"}",
+  "id": "JS393"
+ },
+ {
+  "input": "{a \u201cb\u201d}",
+  "expected": "{\"a\": \"b\"}",
+  "id": "JS394"
+ },
+ {
+  "input": "{\"array\": [\na\nb\n]}",
+  "expected": "{\"array\": [\n\"a\",\n\"b\"\n]}",
+  "id": "JS395"
+ },
+ {
+  "input": "1\n2",
+  "expected": "[\n1,\n2\n]",
+  "id": "JS396"
+ },
+ {
+  "input": "[a,b\nc]",
+  "expected": "[\"a\",\"b\",\n\"c\"]",
+  "id": "JS397"
+ },
+ {
+  "input": "1,2,3",
+  "expected": "[\n1,2,3\n]",
+  "id": "JS398"
+ },
+ {
+  "input": "1,2,3,",
+  "expected": "[\n1,2,3\n]",
+  "id": "JS399"
+ },
+ {
+  "input": "1\n2\n3",
+  "expected": "[\n1,\n2,\n3\n]",
+  "id": "JS400"
+ },
+ {
+  "input": "a\nb",
+  "expected": "[\n\"a\",\n\"b\"\n]",
+  "id": "JS401"
+ },
+ {
+  "input": "a,b",
+  "expected": "[\n\"a\",\"b\"\n]",
+  "id": "JS402"
+ },
+ {
+  "input": "0789",
+  "expected": "\"0789\"",
+  "id": "JS403"
+ },
+ {
+  "input": "000789",
+  "expected": "\"000789\"",
+  "id": "JS404"
+ },
+ {
+  "input": "001.2",
+  "expected": "\"001.2\"",
+  "id": "JS405"
+ },
+ {
+  "input": "002e3",
+  "expected": "\"002e3\"",
+  "id": "JS406"
+ },
+ {
+  "input": "[0789]",
+  "expected": "[\"0789\"]",
+  "id": "JS407"
+ },
+ {
+  "input": "{value:0789}",
+  "expected": "{\"value\":\"0789\"}",
+  "id": "JS408"
+ },
+ {
+  "input": "{&quot;name&quot;: &quot;John&quot;}",
+  "expected": "{\"name\": \"John\"}",
+  "id": "JS409"
+ },
+ {
+  "input": "&quot;hello&quot;",
+  "expected": "\"hello\"",
+  "id": "JS410"
+ },
+ {
+  "input": "{&quot;a&quot;:2}",
+  "expected": "{\"a\":2}",
+  "id": "JS411"
+ },
+ {
+  "input": "[&quot;a&quot;, &quot;b&quot;]",
+  "expected": "[\"a\", \"b\"]",
+  "id": "JS412"
+ },
+ {
+  "input": "{&quot;a&quot;: &quot;b &amp; c&quot;}",
+  "expected": "{\"a\": \"b & c\"}",
+  "id": "JS413"
+ },
+ {
+  "input": "{&quot;a&quot;: &quot;&lt;b&gt;&quot;}",
+  "expected": "{\"a\": \"<b>\"}",
+  "id": "JS414"
+ },
+ {
+  "input": "{&quot;a&quot;: &apos;hello&apos;}",
+  "expected": "{\"a\": \"hello\"}",
+  "id": "JS415"
+ },
+ {
+  "input": "&#34;hello&#34;",
+  "expected": "\"hello\"",
+  "id": "JS416"
+ },
+ {
+  "input": "&#x22;hello&#x22;",
+  "expected": "\"hello\"",
+  "id": "JS417"
+ },
+ {
+  "input": "{&#34;a&#34;: &#34;b&#34;}",
+  "expected": "{\"a\": \"b\"}",
+  "id": "JS418"
+ },
+ {
+  "input": "{&quot;a&quot;: &quot;1 &lt; 2&quot;}",
+  "expected": "{\"a\": \"1 < 2\"}",
+  "id": "JS419"
+ },
+ {
+  "input": "{\"a\": \"&amp; test\"}",
+  "expected": "{\"a\": \"&amp; test\"}",
+  "id": "JS420"
+ },
+ {
+  "input": "{\"html\": \"&quot;bold&quot;\"}",
+  "expected": "{\"html\": \"&quot;bold&quot;\"}",
+  "id": "JS421"
+ },
+ {
+  "input": "{a: '&amp; test'}",
+  "expected": "{\"a\": \"&amp; test\"}",
+  "id": "JS422"
+ },
+ {
+  "input": "{&quot;a&quot;: 1, b: 'AT&amp;T'}",
+  "expected": "{\"a\": 1, \"b\": \"AT&amp;T\"}",
+  "id": "JS423"
+ },
+ {
+  "input": "{b: 'AT&amp;T', &quot;a&quot;: 1}",
+  "expected": "{\"b\": \"AT&amp;T\", \"a\": 1}",
+  "id": "JS424"
+ },
+ {
+  "input": "&quot;he\"llo&quot;",
+  "expected": "\"he\\\"llo\"",
+  "id": "JS425"
+ },
+ {
+  "input": "&quot",
+  "expected": "\"&quot\"",
+  "id": "JS426"
+ },
+ {
+  "input": "&#",
+  "expected": "\"&#\"",
+  "id": "JS427"
+ },
+ {
+  "input": "&",
+  "expected": "\"&\"",
+  "id": "JS428"
+ },
+ {
+  "id": "JS429",
+  "input": "{\"a\":2.3e100,\"b\":\"str\",\"c\":null,\"d\":false,\"e\":[1,2,3]}",
+  "expected": "{\"a\":2.3e100,\"b\":\"str\",\"c\":null,\"d\":false,\"e\":[1,2,3]}"
+ },
+ {
+  "id": "JS430",
+  "input": "{\n   \"_id\" : ObjectId(\"123\"),\n   \"isoDate\" : ISODate(\"2012-12-19T06:01:17.171Z\"),\n   \"regularNumber\" : 67,\n   \"long\" : NumberLong(\"2\"),\n   \"long2\" : NumberLong(2),\n   \"int\" : NumberInt(\"3\"),\n   \"int2\" : NumberInt(3),\n   \"decimal\" : NumberDecimal(\"4\"),\n   \"decimal2\" : NumberDecimal(4)\n}",
+  "expected": "{\n   \"_id\" : \"123\",\n   \"isoDate\" : \"2012-12-19T06:01:17.171Z\",\n   \"regularNumber\" : 67,\n   \"long\" : \"2\",\n   \"long2\" : 2,\n   \"int\" : \"3\",\n   \"int2\" : 3,\n   \"decimal\" : \"4\",\n   \"decimal2\" : 4\n}"
+ },
+ {
+  "id": "JS431",
+  "input": "/* 1 */\n{}\n\n/* 2 */\n{}\n\n/* 3 */\n{}\n",
+  "expected": "[\n\n{},\n\n\n{},\n\n\n{}\n\n]"
+ },
+ {
+  "id": "JS432",
+  "input": "/* 1 */\n{},\n\n/* 2 */\n{},\n\n/* 3 */\n{}\n",
+  "expected": "[\n\n{},\n\n\n{},\n\n\n{}\n\n]"
+ },
+ {
+  "id": "JS433",
+  "input": "/* 1 */\n{},\n\n/* 2 */\n{},\n\n/* 3 */\n{},\n",
+  "expected": "[\n\n{},\n\n\n{},\n\n\n{}\n\n]"
+ },
+ {
+  "id": "JS434",
+  "input": "[\\\"hello\\, \\\"world\\\"]",
+  "expected": "world\"]"
+ },
+ {
+  "id": "JS435",
+  "input": "{\"array\": [{} {}]}",
+  "expected": "{}]}"
+ }
+]
