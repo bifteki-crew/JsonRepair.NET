@@ -16,11 +16,6 @@ public sealed record JsonRepairOptions
     public bool StripMarkdownFences { get; init; } = true;
 
     /// <summary>
-    /// Whether to normalize single-quoted strings and keys into standard double-quoted strings. Default is true.
-    /// </summary>
-    public bool NormalizeQuotes { get; init; } = true;
-
-    /// <summary>
     /// Whether to convert unquoted object keys into double-quoted keys. Default is true.
     /// </summary>
     public bool QuoteUnquotedKeys { get; init; } = true;

@@ -38,7 +38,7 @@ internal ref struct JsonRepairStateMachine
 
                 if (inString) {
                     if (c == currentQuote && !IsEscaped(_input, index)) {
-                        _sb.Append(currentQuote == '\'' && _options.NormalizeQuotes ? '"' : currentQuote);
+                        _sb.Append(currentQuote == '\'' ? '"' : currentQuote);
                         inString = false;
                         currentQuote = '\0';
                         expectedValue = false;
@@ -53,7 +53,7 @@ internal ref struct JsonRepairStateMachine
                             default: _sb.Append($"\\u{(int)c:x4}"); break;
                         }
                     }
-                    else if (c == '"' && currentQuote == '\'' && _options.NormalizeQuotes) {
+                    else if (c == '"' && currentQuote == '\'') {
                         _sb.Append("\\\"");
                     }
                     else {
@@ -78,7 +78,7 @@ internal ref struct JsonRepairStateMachine
                     }
                     inString = true;
                     currentQuote = c;
-                    _sb.Append(c == '\'' && _options.NormalizeQuotes ? '"' : c);
+                    _sb.Append(c == '\'' ? '"' : c);
                     index++;
                     continue;
                 }
@@ -190,7 +190,7 @@ internal ref struct JsonRepairStateMachine
 
             // Auto-close unclosed strings
             if (inString && _options.AutoCloseStructures) {
-                _sb.Append(currentQuote == '\'' && _options.NormalizeQuotes ? '"' : currentQuote);
+                _sb.Append(currentQuote == '\'' ? '"' : currentQuote);
             }
 
             // Auto-close unclosed objects/arrays
@@ -211,8 +211,21 @@ internal ref struct JsonRepairStateMachine
 
     private static int FindFirstJsonToken(ReadOnlySpan<char> span)
     {
+        // Skip over quoted sections: a '{' or '[' inside a string (e.g. input "[") is content, not a token
         for (int i = 0; i < span.Length; i++) {
-            if (span[i] is '{' or '[') {
+            char c = span[i];
+            if (c is '"' or '\'') {
+                char quote = c;
+                int quoteStart = i;
+                i++;
+                while (i < span.Length && (span[i] != quote || IsEscaped(span, i))) {
+                    i++;
+                }
+                if (i >= span.Length) {
+                    i = quoteStart; // unterminated quote: treat it as prose and keep scanning
+                }
+            }
+            else if (c is '{' or '[') {
                 return i;
             }
         }

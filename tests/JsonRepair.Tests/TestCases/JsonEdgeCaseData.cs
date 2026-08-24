@@ -33,5 +33,9 @@ public class JsonEdgeCaseData : TheoryData<string, string, string>
         Add("TC28", "{]", "{}");
         Add("TC29", "{\"a\": [1, 2}", "{\"a\": [1, 2]}");
         Add("TC30", "[1 None]", "[1, null]");
+        Add("TC31", "\"[\"", "\"[\"");
+        Add("TC32", "\"{\"", "\"{\"");
+        Add("TC33", "\"[1,2,3,]\"", "\"[1,2,3,]\"");
+        Add("TC34", "Here is your JSON: {\"a\": 1}", "{\"a\": 1}");
     }
 }

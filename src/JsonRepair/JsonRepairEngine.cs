@@ -27,6 +27,7 @@ public static class JsonRepairEngine
     /// <param name="json">The malformed JSON string.</param>
     /// <param name="options">Repair options. If null, <see cref="JsonRepairOptions.Default"/> is used.</param>
     /// <returns>A valid JSON string.</returns>
+    /// <exception cref="JsonRepairException">Thrown when the input cannot be repaired into valid JSON.</exception>
     public static string Repair(string json, JsonRepairOptions? options = null)
     {
         if (string.IsNullOrWhiteSpace(json)) {
@@ -51,12 +52,25 @@ public static class JsonRepairEngine
         // Step 3: Core State Machine Repair Pass
         Span<char> stackBuffer = stackalloc char[64];
         var stateMachine = new JsonRepairStateMachine(span, options, stackBuffer);
-        return stateMachine.Repair();
+        string repaired = stateMachine.Repair();
+
+        // Step 4: Valid-or-throw contract (0.2.0): never return invalid JSON
+        try {
+            // MaxDepth int.MaxValue, not 0: JsonDocumentOptions treats 0 as the 64-level default. The repair
+            // engine supports arbitrary depth (growable stack), so the validator must not be stricter than it.
+            using (JsonDocument.Parse(repaired, new JsonDocumentOptions { MaxDepth = int.MaxValue })) { }
+        }
+        catch (JsonException ex) {
+            throw new JsonRepairException($"Unable to repair the input into valid JSON. {ex.Message}", ex);
+        }
+
+        return repaired;
     }
 
     /// <summary>
     /// Repairs malformed UTF-8 JSON bytes from a <see cref="ReadOnlySpan{Byte}"/> and writes repaired valid JSON directly to an <see cref="IBufferWriter{Byte}"/>.
     /// </summary>
+    /// <exception cref="JsonRepairException">Thrown when the input cannot be repaired into valid JSON. Nothing is written to <paramref name="writer"/> in that case.</exception>
     public static void Repair(ReadOnlySpan<byte> utf8Input, IBufferWriter<byte> writer, JsonRepairOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(writer);
@@ -69,9 +83,50 @@ public static class JsonRepairEngine
         }
 
         options ??= JsonRepairOptions.Default;
+
+        // Stage into a pooled buffer so the output can be validated before it reaches the caller's writer
+        using var buffer = new PooledBufferWriter(utf8Input.Length + 32);
         Span<byte> stackBuffer = stackalloc byte[64];
-        var stateMachine = new Utf8JsonRepairStateMachine(utf8Input, options, writer, stackBuffer);
+        var stateMachine = new Utf8JsonRepairStateMachine(utf8Input, options, buffer, stackBuffer);
         stateMachine.Repair();
+
+        // Valid-or-throw contract (0.2.0): never emit invalid JSON
+        if (!Utf8JsonValidator.IsValid(buffer.WrittenSpan)) {
+            throw new JsonRepairException("Unable to repair the input into valid JSON.");
+        }
+
+        writer.Write(buffer.WrittenSpan);
+    }
+
+    /// <summary>
+    /// Tries to repair a malformed JSON string into valid, standard JSON. Returns false when the input cannot be repaired.
+    /// </summary>
+    public static bool TryRepair(string json, out string? repaired, JsonRepairOptions? options = null)
+    {
+        try {
+            repaired = Repair(json, options);
+            return true;
+        }
+        catch (JsonRepairException) {
+            repaired = null;
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Tries to repair malformed UTF-8 JSON bytes into an <see cref="IBufferWriter{Byte}"/>. Returns false (and writes nothing) when the input cannot be repaired.
+    /// </summary>
+    public static bool TryRepair(ReadOnlySpan<byte> utf8Input, IBufferWriter<byte> writer, JsonRepairOptions? options = null)
+    {
+        ArgumentNullException.ThrowIfNull(writer);
+
+        try {
+            Repair(utf8Input, writer, options);
+            return true;
+        }
+        catch (JsonRepairException) {
+            return false;
+        }
     }
 
     /// <summary>

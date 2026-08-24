@@ -47,7 +47,7 @@ internal ref struct Utf8JsonRepairStateMachine
                 if (inString) {
                     FlushPendingComma();
                     if (b == currentQuote && !IsEscaped(_input, index)) {
-                        byte outQuote = (currentQuote == (byte)'\'' && _options.NormalizeQuotes) ? (byte)'"' : currentQuote;
+                        byte outQuote = currentQuote == (byte)'\'' ? (byte)'"' : currentQuote;
                         WriteByte(outQuote);
                         inString = false;
                         currentQuote = 0;
@@ -63,7 +63,7 @@ internal ref struct Utf8JsonRepairStateMachine
                             default: WriteHexEscape(b); break;
                         }
                     }
-                    else if (b == (byte)'"' && currentQuote == (byte)'\'' && _options.NormalizeQuotes) {
+                    else if (b == (byte)'"' && currentQuote == (byte)'\'') {
                         WriteString("\\\"");
                     }
                     else {
@@ -110,7 +110,7 @@ internal ref struct Utf8JsonRepairStateMachine
                     FlushPendingComma();
                     inString = true;
                     currentQuote = b;
-                    byte outQuote = (b == (byte)'\'' && _options.NormalizeQuotes) ? (byte)'"' : b;
+                    byte outQuote = b == (byte)'\'' ? (byte)'"' : b;
                     WriteByte(outQuote);
                     index++;
                     continue;
@@ -229,7 +229,7 @@ internal ref struct Utf8JsonRepairStateMachine
 
             // Auto-close unclosed strings
             if (inString && _options.AutoCloseStructures) {
-                byte outQuote = (currentQuote == (byte)'\'' && _options.NormalizeQuotes) ? (byte)'"' : currentQuote;
+                byte outQuote = currentQuote == (byte)'\'' ? (byte)'"' : currentQuote;
                 WriteByte(outQuote);
             }
 
@@ -286,11 +286,83 @@ internal ref struct Utf8JsonRepairStateMachine
     {
         for (int i = 0; i < span.Length; i++) {
             byte b = span[i];
-            if (b is (byte)'{' or (byte)'[' or (byte)'"' or (byte)'\'' or (>= (byte)'0' and <= (byte)'9') or (byte)'-' or (byte)'t' or (byte)'f' or (byte)'n' or (byte)'T' or (byte)'F' or (byte)'N') {
+
+            // Skip comments: prose before JSON may contain them
+            if (b == (byte)'/' && i + 1 < span.Length) {
+                if (span[i + 1] == (byte)'/') {
+                    i += 2;
+                    while (i < span.Length && span[i] is not (byte)'\n' and not (byte)'\r') {
+                        i++;
+                    }
+                    continue;
+                }
+                if (span[i + 1] == (byte)'*') {
+                    i += 2;
+                    while (i + 1 < span.Length && !(span[i] == (byte)'*' && span[i + 1] == (byte)'/')) {
+                        i++;
+                    }
+                    i = Math.Min(i + 1, span.Length - 1); // land on the closing '/' or at the end
+                    continue;
+                }
+            }
+
+            // Skip over quoted sections: brackets inside a string (e.g. input "[") are content, not tokens
+            if (b is (byte)'"' or (byte)'\'') {
+                byte quote = b;
+                int quoteStart = i;
+                i++;
+                while (i < span.Length && (span[i] != quote || IsEscaped(span, i))) {
+                    i++;
+                }
+                if (i >= span.Length) {
+                    // Unterminated quote: when only whitespace precedes it, the JSON starts at this quote
+                    if (IsWhitespaceOnly(span[..quoteStart])) {
+                        return quoteStart;
+                    }
+                    i = quoteStart; // otherwise it's prose (e.g. an apostrophe): keep scanning
+                }
+                continue;
+            }
+
+            if (b is (byte)'{' or (byte)'[') {
                 return i;
+            }
+
+            // Number start: only when not glued to a prose word (e.g. the "123" in "callback_123")
+            if (b is (>= (byte)'0' and <= (byte)'9') or (byte)'-') {
+                if (i == 0 || !IsIdentifierChar(span[i - 1])) {
+                    return i;
+                }
+            }
+
+            // Literal candidates: only a full literal with word boundary counts; otherwise skip the prose word
+            if (b is (byte)'t' or (byte)'f' or (byte)'n' or (byte)'T' or (byte)'F' or (byte)'N' or (byte)'u') {
+                if (TryMatchLiteral(span, i, out _, out _) || StartsWithStandardLiteral(span, i)) {
+                    return i;
+                }
+                while (i < span.Length && IsIdentifierChar(span[i])) {
+                    i++;
+                }
+                i--;
             }
         }
         return 0;
+    }
+
+    private static bool StartsWithStandardLiteral(ReadOnlySpan<byte> span, int index)
+    {
+        ReadOnlySpan<byte> slice = span[index..];
+        return MatchLiteralWord(slice, "true"u8) || MatchLiteralWord(slice, "false"u8) || MatchLiteralWord(slice, "null"u8);
+    }
+
+    private static bool IsWhitespaceOnly(ReadOnlySpan<byte> span)
+    {
+        foreach (byte b in span) {
+            if (b is not (byte)' ' and not (byte)'\t' and not (byte)'\n' and not (byte)'\r') {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void EnsureCommaIfMissing()

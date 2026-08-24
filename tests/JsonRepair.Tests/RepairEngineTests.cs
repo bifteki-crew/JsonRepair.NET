@@ -42,20 +42,6 @@ public class RepairEngineTests
     }
 
     [Fact]
-    public void Repair_ShouldRespectNormalizeQuotesOption()
-    {
-        // Arrange
-        var options = new JsonRepairOptions { NormalizeQuotes = false };
-        string malformed = "{'item': 'Bifteki'}";
-
-        // Act
-        string repaired = JsonRepairEngine.Repair(malformed, options);
-
-        // Assert
-        repaired.Should().Be("{'item':'Bifteki'}");
-    }
-
-    [Fact]
     public void TryDeserialize_ShouldReturnTrue_WhenResultIsNull()
     {
         // Act
@@ -73,15 +59,30 @@ public class RepairEngineTests
     public void Repair_ShouldNotConvertLiteralPrefixInsideLongerWord()
     {
         // Arrange: "TrueStuff" starts with "True" but is one identifier.
-        // Unquoted string VALUES are not yet supported (Tier 3 / 0.3.0),
-        // so the identifier must pass through untouched instead of being
-        // corrupted into {"a":true,"Stuff"}.
+        // Unquoted string VALUES are not yet supported (Tier 3 / 0.3.0), so this
+        // input is unrepairable and must throw rather than silently emit
+        // corrupted JSON like {"a":true,"Stuff"} (valid-or-throw contract, 0.2.0).
         string malformed = "{a: TrueStuff}";
+
+        // Act
+        Action act = () => JsonRepairEngine.Repair(malformed);
+
+        // Assert
+        act.Should().Throw<JsonRepairException>();
+    }
+
+    [Fact]
+    public void Repair_ShouldHandleDeepNestingBeyondDefaultReaderDepth()
+    {
+        // Arrange: 100 levels of nested arrays, past System.Text.Json's 64-level default.
+        // The repair engine supports arbitrary depth, so the valid-or-throw validator
+        // must not reject its own correct output (regression guard, 0.2.0).
+        string malformed = new string('[', 100) + "1";
 
         // Act
         string repaired = JsonRepairEngine.Repair(malformed);
 
         // Assert
-        repaired.Should().Be("{\"a\":TrueStuff}");
+        repaired.Should().Be(new string('[', 100) + "1" + new string(']', 100));
     }
 }
