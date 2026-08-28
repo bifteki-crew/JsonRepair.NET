@@ -209,11 +209,36 @@ internal ref struct JsonRepairStateMachine
         }
     }
 
+    /// <summary>
+    /// Locates where the JSON actually starts, skipping any prose, comments or markdown the model
+    /// wrapped around it. Mirrors <c>Utf8JsonRepairStateMachine.FindFirstJsonToken</c> — the two
+    /// engines are the same public contract and must not disagree about where a document begins.
+    /// </summary>
     private static int FindFirstJsonToken(ReadOnlySpan<char> span)
     {
-        // Skip over quoted sections: a '{' or '[' inside a string (e.g. input "[") is content, not a token
         for (int i = 0; i < span.Length; i++) {
             char c = span[i];
+
+            // Skip comments: prose before JSON may contain them
+            if (c == '/' && i + 1 < span.Length) {
+                if (span[i + 1] == '/') {
+                    i += 2;
+                    while (i < span.Length && span[i] is not '\n' and not '\r') {
+                        i++;
+                    }
+                    continue;
+                }
+                if (span[i + 1] == '*') {
+                    i += 2;
+                    while (i + 1 < span.Length && !(span[i] == '*' && span[i + 1] == '/')) {
+                        i++;
+                    }
+                    i = Math.Min(i + 1, span.Length - 1); // land on the closing '/' or at the end
+                    continue;
+                }
+            }
+
+            // Skip over quoted sections: brackets inside a string (e.g. input "[") are content, not tokens
             if (c is '"' or '\'') {
                 char quote = c;
                 int quoteStart = i;
@@ -222,14 +247,54 @@ internal ref struct JsonRepairStateMachine
                     i++;
                 }
                 if (i >= span.Length) {
-                    i = quoteStart; // unterminated quote: treat it as prose and keep scanning
+                    // Unterminated quote: when only whitespace precedes it, the JSON starts at this quote
+                    if (IsWhitespaceOnly(span[..quoteStart])) {
+                        return quoteStart;
+                    }
+                    i = quoteStart; // otherwise it's prose (e.g. an apostrophe): keep scanning
+                }
+                continue;
+            }
+
+            if (c is '{' or '[') {
+                return i;
+            }
+
+            // Number start: only when not glued to a prose word (e.g. the "123" in "callback_123")
+            if (c is (>= '0' and <= '9') or '-') {
+                if (i == 0 || !IsIdentifierChar(span[i - 1])) {
+                    return i;
                 }
             }
-            else if (c is '{' or '[') {
-                return i;
+
+            // Literal candidates: only a full literal with word boundary counts; otherwise skip the prose word
+            if (c is 't' or 'f' or 'n' or 'T' or 'F' or 'N' or 'u') {
+                if (TryMatchLiteral(span, i, out _, out _) || StartsWithStandardLiteral(span, i)) {
+                    return i;
+                }
+                while (i < span.Length && IsIdentifierChar(span[i])) {
+                    i++;
+                }
+                i--;
             }
         }
         return 0;
+    }
+
+    private static bool StartsWithStandardLiteral(ReadOnlySpan<char> span, int index)
+    {
+        ReadOnlySpan<char> slice = span[index..];
+        return MatchLiteralWord(slice, "true") || MatchLiteralWord(slice, "false") || MatchLiteralWord(slice, "null");
+    }
+
+    private static bool IsWhitespaceOnly(ReadOnlySpan<char> span)
+    {
+        foreach (char c in span) {
+            if (c is not ' ' and not '\t' and not '\n' and not '\r') {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void EnsureCommaIfMissing()
