@@ -104,9 +104,7 @@ internal ref struct Utf8JsonRepairStateMachine
                 }
 
                 if (b is (byte)'"' or (byte)'\'') {
-                    if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
-                        EnsureCommaIfMissing();
-                    }
+                    SeparateFromPreviousValue(expectedValue);
                     FlushPendingComma();
                     inString = true;
                     currentQuote = b;
@@ -117,9 +115,7 @@ internal ref struct Utf8JsonRepairStateMachine
                 }
 
                 if (b is (byte)'{' or (byte)'[') {
-                    if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
-                        EnsureCommaIfMissing();
-                    }
+                    SeparateFromPreviousValue(expectedValue);
                     FlushPendingComma();
                     _structureStack.Push(b);
                     WriteByte(b);
@@ -177,9 +173,7 @@ internal ref struct Utf8JsonRepairStateMachine
 
                 // Check for non-standard literals (None, True, False, undefined, NaN)
                 if (_options.ConvertNonStandardLiterals && !inKeyPosition && TryMatchLiteral(_input, index, out ReadOnlySpan<byte> repairedLiteral, out int literalLen)) {
-                    if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
-                        EnsureCommaIfMissing();
-                    }
+                    SeparateFromPreviousValue(expectedValue);
                     FlushPendingComma();
                     WriteBytes(repairedLiteral);
                     index += literalLen;
@@ -189,9 +183,7 @@ internal ref struct Utf8JsonRepairStateMachine
 
                 // Check for numbers
                 if (b is >= (byte)'0' and <= (byte)'9' or (byte)'-') {
-                    if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
-                        EnsureCommaIfMissing();
-                    }
+                    SeparateFromPreviousValue(expectedValue);
                     FlushPendingComma();
                     int len = GetNumberLength(_input, index);
                     WriteBytes(_input.Slice(index, len));
@@ -202,9 +194,7 @@ internal ref struct Utf8JsonRepairStateMachine
 
                 // Check for unquoted keys/identifiers (including non-ASCII UTF-8 bytes >= 0x80)
                 if (b is (>= (byte)'a' and <= (byte)'z') or (>= (byte)'A' and <= (byte)'Z') or (byte)'_' or >= 0x80) {
-                    if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
-                        EnsureCommaIfMissing();
-                    }
+                    SeparateFromPreviousValue(expectedValue);
                     FlushPendingComma();
                     int len = GetIdentifierLength(_input, index);
                     ReadOnlySpan<byte> identifier = _input.Slice(index, len);
@@ -218,6 +208,9 @@ internal ref struct Utf8JsonRepairStateMachine
                         WriteBytes(identifier);
                     }
 
+                    // A written identifier completes whatever slot it filled. Leaving expectedValue set
+                    // would let the next identifier follow without a separator, fusing "n ull" into null.
+                    expectedValue = false;
                     index += len;
                     continue;
                 }
@@ -363,6 +356,23 @@ internal ref struct Utf8JsonRepairStateMachine
             }
         }
         return true;
+    }
+
+    /// <summary>
+    /// Emits the separator a value needs when it directly follows another value.
+    /// </summary>
+    /// <remarks>
+    /// Inside a container this repairs a missing comma. At the root it deliberately produces invalid
+    /// JSON, because two root values must not be run together: without a separator the dropped
+    /// whitespace fuses them, turning "8 67" into 867 and "n ull" into null — numbers and literals that
+    /// were never in the input. The validator rejects the separated form instead, which matches both
+    /// upstreams: josdejong throws and mangiucugna reports failure, and neither ever fuses tokens.
+    /// </remarks>
+    private void SeparateFromPreviousValue(bool expectedValue)
+    {
+        if (!expectedValue && _options.InsertMissingCommas) {
+            EnsureCommaIfMissing();
+        }
     }
 
     private void EnsureCommaIfMissing()

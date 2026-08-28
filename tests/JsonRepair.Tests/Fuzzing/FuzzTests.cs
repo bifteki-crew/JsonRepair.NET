@@ -87,10 +87,10 @@ public class FuzzTests
             string? viaUtf8 = Outcome(() => RepairUtf8(input));
 
             if (viaString is null && viaUtf8 is not null) {
-                // Known divergence, allowed in this direction only: the UTF-8 engine reassembles
-                // literals and numbers split by whitespace ("n ull" -> null, "8 67" -> 867) where the
-                // string engine rejects the input. Pinned in KnownEngineDivergenceTests. Which engine
-                // is right is a repair-semantics decision, so this stays tracked rather than silenced.
+                // Allowed in this direction only: the UTF-8 engine repairs a little more than the
+                // string engine does — a trailing comma after a root primitive ("536," -> 536), which
+                // is what josdejong does too. Pinned in EngineAgreementTests. The reverse direction,
+                // and any outright disagreement, is a defect and fails below.
                 lenientUtf8++;
                 continue;
             }
