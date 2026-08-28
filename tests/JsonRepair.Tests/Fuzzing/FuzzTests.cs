@@ -91,6 +91,10 @@ public class FuzzTests
                 // string engine does — a trailing comma after a root primitive ("536," -> 536), which
                 // is what josdejong does too. Pinned in EngineAgreementTests. The reverse direction,
                 // and any outright disagreement, is a defect and fails below.
+                //
+                // The reverse does occur once, on non-ASCII whitespace (NBSP, U+3000), where the string
+                // engine is the lenient one. This generator does not emit those characters, so that
+                // class shows up in the corpus rather than here; see docs/UPSTREAM.md.
                 lenientUtf8++;
                 continue;
             }

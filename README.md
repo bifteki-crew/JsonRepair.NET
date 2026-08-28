@@ -3,7 +3,7 @@
 [![Build & Test](https://github.com/bifteki-crew/JsonRepair.NET/actions/workflows/ci.yml/badge.svg)](https://github.com/bifteki-crew/JsonRepair.NET/actions)
 [![NuGet](https://img.shields.io/nuget/v/JsonRepair.svg)](https://www.nuget.org/packages/JsonRepair/)
 [![Framework](https://img.shields.io/badge/.NET-10.0-purple.svg)](https://dotnet.microsoft.com/)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/bifteki-crew/JsonRepair.NET/blob/main/LICENSE)
 [![Bifteki Crew](https://img.shields.io/badge/Bifteki%20Crew-Approved%20🥩-orange.svg)](#)
 
 > **Flame-grilling malformed, broken LLM JSON into standard valid JSON at lightning speed.**
@@ -55,6 +55,13 @@ string repaired = JsonRepairEngine.Repair(malformedLlmJson);
 Console.WriteLine(repaired);
 // Output: {"crew":"Bifteki Team","flame_grilled":true,"secret_ingredient":null,"items":["Patty","Garlic"]}
 
+// Repair either returns valid JSON or throws — it never hands back something that will not parse.
+// TryRepair gives you the same guarantee without the exception:
+if (JsonRepairEngine.TryRepair(malformedLlmJson, out string? result))
+{
+    Console.WriteLine(result);
+}
+
 // Exception-free Direct Parsing into JsonDocument
 if (JsonRepairEngine.TryParse(malformedLlmJson, out JsonDocument? doc))
 {
@@ -79,6 +86,38 @@ JsonRepairEngine.Repair(utf8Input.AsSpan(), writer);
 
 ---
 
+## 🛡️ The Repair Contract
+
+`Repair` has one guarantee: **the string it returns parses, or it throws.** It never returns
+best-effort text that fails later inside your deserializer.
+
+| Outcome | `Repair` | `TryRepair` |
+| :--- | :--- | :--- |
+| Input repaired | returns valid JSON | returns `true` |
+| Input unrepairable | throws `JsonRepairException` | returns `false`, writes nothing |
+
+`JsonRepairException` derives from `JsonException`, so existing `catch (JsonException)` clauses
+keep working. Its message names the reason; the originating exception is kept as `InnerException`.
+
+```csharp
+try
+{
+    string repaired = JsonRepairEngine.Repair("{a: hello}");
+}
+catch (JsonRepairException ex)
+{
+    // "Unable to repair the input into valid JSON: 'h' is an invalid start of a value."
+    Console.WriteLine(ex.Message);
+}
+```
+
+> **Note:** error positions are not yet reported against your input. The engine repairs
+> optimistically and validates afterwards, so the only offsets available describe the repaired
+> output — quoting them would point at the wrong place. Input-relative positions arrive in 0.3.0
+> with the grammar-based rework.
+
+---
+
 ## ⚡ Performance Benchmarks (.NET 10)
 
 Benchmarked with **BenchmarkDotNet** using `[MemoryDiagnoser]` (`string` repair API):
@@ -94,16 +133,35 @@ Benchmarked with **BenchmarkDotNet** using `[MemoryDiagnoser]` (`string` repair 
 
 ## ⚠️ Known Limitations (0.x)
 
-The engine repairs the most common LLM/legacy failure modes (see above). The following upstream
-repair categories are **not yet supported** and are scheduled on the
-[pre-1.0 roadmap](https://github.com/bifteki-crew/JsonRepair.NET/blob/main/docs/05-pre-1.0-roadmap.md):
+The engine repairs the most common LLM/legacy failure modes (see above). Coverage against the
+upstream [josdejong/jsonrepair](https://github.com/josdejong/jsonrepair) suite is **measured, not
+estimated**: its corpus is ported and runs against both engines on every build, currently at
+**191/427 (44.7%)** with every gap categorised. Unsupported input **throws** rather than returning
+something broken.
 
-- Unquoted string *values* (`{a: hello}`), missing colons (`{a 1}`), missing values (`{"a":}`)
-- Ellipsis (`[1, 2, ...]`), smart/typographic quotes (`“…” ‘…’`), special unicode whitespace
-- Double-encoded JSON (`{\"a\": \"b\"}`), string concatenation (`"a" + "b"`)
-- NDJSON / multiple root values (currently the first root value is returned)
-- JSONP / MongoDB function calls, HTML entities, regex literals
-- Number normalization edge cases (`2.`, `-.5`, `001`), unescaped-quote heuristics (`'it's'`)
+The largest gaps, by ported corpus cases:
+
+| Not yet repaired | Cases | Planned |
+| :--- | ---: | :--- |
+| Unquoted string *values* — `{a: hello}` | 69 | 0.3.0 |
+| Number edge cases — `2.`, `-.5`, `001`, `2e` | 32 | 0.3.0 |
+| Unescaped-quote heuristics — `{'it's'}` | 18 | 0.3.0 |
+| Ellipsis — `[1, 2, ...]` | 18 | 0.3.0 |
+| HTML entities — `&quot;` | 16 | 0.5.0+ |
+| Smart/typographic quotes — `“…”` `‘…’` | 14 | 0.3.0 |
+| Missing colons — `{a 1}` | 10 | 0.3.0 |
+| Special unicode whitespace — NBSP, U+3000 | 9 | 0.3.0 |
+| Leading commas — `[,1]` | 8 | 0.3.0 |
+| NDJSON / multiple root values | 7 | 0.4.0 |
+| Missing values — `{"a":}` | 6 | 0.3.0 |
+| Double-encoded JSON — `{\"a\": \"b\"}` | 6 | 0.4.0 |
+| String concatenation — `"a" + "b"` | 5 | 0.4.0 |
+| JSONP / MongoDB calls — `cb({...})`, `ISODate(...)` | 8 | 0.4.0 |
+
+Full breakdown, including the two known differences between the string and UTF-8 engines, in
+[docs/UPSTREAM.md](https://github.com/bifteki-crew/JsonRepair.NET/blob/main/docs/UPSTREAM.md).
+Tier schedule in the
+[pre-1.0 roadmap](https://github.com/bifteki-crew/JsonRepair.NET/blob/main/docs/05-pre-1.0-roadmap.md).
 
 ---
 
@@ -125,6 +183,7 @@ dotnet run --project src/JsonRepair.Cli
 - 📄 [02-vision-and-architecture.md](https://github.com/bifteki-crew/JsonRepair.NET/blob/main/docs/02-vision-and-architecture.md): Vision & span state machine design.
 - 📄 [03-tdd-roadmap.md](https://github.com/bifteki-crew/JsonRepair.NET/blob/main/docs/03-tdd-roadmap.md): TDD test matrix (20+ failure modes).
 - 📄 [04-implementation-roadmap.md](https://github.com/bifteki-crew/JsonRepair.NET/blob/main/docs/04-implementation-roadmap.md): Phased delivery roadmap.
+- 📄 [CHANGELOG.md](https://github.com/bifteki-crew/JsonRepair.NET/blob/main/CHANGELOG.md): Release notes & migration guide between minors.
 - 📄 [05-pre-1.0-roadmap.md](https://github.com/bifteki-crew/JsonRepair.NET/blob/main/docs/05-pre-1.0-roadmap.md): Pre-1.0 release tiers (0.1.0 → 1.0.0), critical-findings gate & hardening plan.
 
 ---

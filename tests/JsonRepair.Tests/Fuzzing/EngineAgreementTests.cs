@@ -49,10 +49,14 @@ public class EngineAgreementTests
     }
 
     /// <summary>
-    /// The one divergence left. After a root-level primitive the UTF-8 engine drops a trailing comma,
-    /// which is what josdejong does (<c>"536,"</c> repairs to <c>536</c>); the string engine rejects the
-    /// input instead. So this is the string engine lagging upstream, not the UTF-8 engine overreaching,
-    /// and it closes when root-level trailing commas land in Tier 3.
+    /// One of two remaining divergences. After a root-level primitive the UTF-8 engine drops a trailing
+    /// comma, which is what josdejong does (<c>"536,"</c> repairs to <c>536</c>); the string engine
+    /// rejects the input instead. So this is the string engine lagging upstream, not the UTF-8 engine
+    /// overreaching, and it closes when root-level trailing commas land in Tier 3.
+    /// <para>
+    /// The other runs the opposite way: the string engine repairs non-ASCII whitespace (NBSP, U+3000)
+    /// that the UTF-8 engine rejects, covering 6 corpus cases. Both are recorded in docs/UPSTREAM.md.
+    /// </para>
     /// </summary>
     [Theory]
     [InlineData("536,", "536")]
