@@ -9,9 +9,14 @@ namespace JsonRepair.Internal;
 /// </summary>
 internal static class Utf8JsonValidator
 {
-    public static bool IsValid(ReadOnlySpan<byte> json)
+    /// <summary>
+    /// Validates <paramref name="json"/>, reporting why it is invalid in <paramref name="error"/>
+    /// so the UTF-8 engine can explain a failure as precisely as the string engine does.
+    /// </summary>
+    public static bool IsValid(ReadOnlySpan<byte> json, out string? error)
     {
         if (json.IsEmpty) {
+            error = "the repaired output is empty.";
             return false;
         }
 
@@ -23,7 +28,8 @@ internal static class Utf8JsonValidator
             bool rootCompleted = false;
             while (reader.Read()) {
                 if (rootCompleted) {
-                    return false; // trailing content after the root value
+                    error = "trailing content after the root value.";
+                    return false;
                 }
                 switch (reader.TokenType) {
                     case JsonTokenType.StartObject:
@@ -44,9 +50,17 @@ internal static class Utf8JsonValidator
                         break;
                 }
             }
-            return depth == 0 && rootCompleted;
+
+            if (depth != 0 || !rootCompleted) {
+                error = "the root value is incomplete.";
+                return false;
+            }
+
+            error = null;
+            return true;
         }
-        catch (JsonException) {
+        catch (JsonException ex) {
+            error = JsonErrorMessage.WithoutPosition(ex);
             return false;
         }
     }

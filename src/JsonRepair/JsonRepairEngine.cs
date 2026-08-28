@@ -61,7 +61,7 @@ public static class JsonRepairEngine
             using (JsonDocument.Parse(repaired, new JsonDocumentOptions { MaxDepth = int.MaxValue })) { }
         }
         catch (JsonException ex) {
-            throw new JsonRepairException($"Unable to repair the input into valid JSON. {ex.Message}", ex);
+            throw new JsonRepairException($"Unable to repair the input into valid JSON: {JsonErrorMessage.WithoutPosition(ex)}", ex);
         }
 
         return repaired;
@@ -91,8 +91,8 @@ public static class JsonRepairEngine
         stateMachine.Repair();
 
         // Valid-or-throw contract (0.2.0): never emit invalid JSON
-        if (!Utf8JsonValidator.IsValid(buffer.WrittenSpan)) {
-            throw new JsonRepairException("Unable to repair the input into valid JSON.");
+        if (!Utf8JsonValidator.IsValid(buffer.WrittenSpan, out string? error)) {
+            throw new JsonRepairException($"Unable to repair the input into valid JSON: {error}");
         }
 
         writer.Write(buffer.WrittenSpan);

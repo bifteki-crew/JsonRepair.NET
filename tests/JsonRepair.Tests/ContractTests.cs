@@ -95,6 +95,63 @@ public class ContractTests
     }
 
     [Fact]
+    public void Repair_ShouldExplainWhy_WithoutQuotingAnOutputPosition()
+    {
+        // A markdown fence and single quotes shift every offset between input and output, so any
+        // position System.Text.Json reports describes the repaired output rather than this input.
+        // Surfacing it under a message about "the input" would point the caller at the wrong place.
+        string malformed = "```json\n{'name': 'x', 'v': hello}\n```";
+
+        Action act = () => JsonRepairEngine.Repair(malformed);
+
+        var message = act.Should().Throw<JsonRepairException>().Which.Message;
+        message.Should().Contain("is an invalid start of a value", because: "the reason is the useful part");
+        message.Should().NotContain("BytePositionInLine", because: "that offset is into the repaired output, not the input");
+        message.Should().NotContain("LineNumber", because: "that line number is into the repaired output, not the input");
+    }
+
+    [Fact]
+    public void Repair_ShouldKeepRawPositionsOnTheInnerException()
+    {
+        // Dropping the offsets from the message must not lose them: the original exception is kept
+        // so callers that want the repaired-output offsets can still reach them.
+        Action act = () => JsonRepairEngine.Repair("{a: hello}");
+
+        var thrown = act.Should().Throw<JsonRepairException>().Which;
+        thrown.InnerException.Should().BeAssignableTo<JsonException>();
+        ((JsonException)thrown.InnerException!).BytePositionInLine.Should().NotBeNull();
+    }
+
+    [Theory]
+    [InlineData("{a: hello}")]
+    [InlineData("```json\n{'name': 'x', 'v': hello}\n```")]
+    [InlineData("[\"y\"\\, \"z\"]")]
+    public void Repair_BothEngines_ShouldReportTheSameReason(string input)
+    {
+        // The two engines must fail identically. Before the UTF-8 validator reported a reason it
+        // threw a bare "Unable to repair the input into valid JSON." for inputs where the string
+        // engine explained itself.
+        string stringMessage = CaptureFailure(() => JsonRepairEngine.Repair(input));
+
+        var writer = new ArrayBufferWriter<byte>();
+        byte[] utf8 = Encoding.UTF8.GetBytes(input);
+        string utf8Message = CaptureFailure(() => JsonRepairEngine.Repair(utf8.AsSpan(), writer));
+
+        utf8Message.Should().Be(stringMessage);
+    }
+
+    private static string CaptureFailure(Action act)
+    {
+        try {
+            act();
+        }
+        catch (JsonRepairException ex) {
+            return ex.Message;
+        }
+        throw new InvalidOperationException("expected the repair to fail");
+    }
+
+    [Fact]
     public void Repair_ShouldNeverSilentlyReturnInvalidJson()
     {
         // The contract on a broad sample: every returned value must parse
