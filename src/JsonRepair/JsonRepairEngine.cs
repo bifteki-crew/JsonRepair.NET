@@ -60,7 +60,10 @@ public static class JsonRepairEngine
             // engine supports arbitrary depth (growable stack), so the validator must not be stricter than it.
             using (JsonDocument.Parse(repaired, new JsonDocumentOptions { MaxDepth = int.MaxValue })) { }
         }
-        catch (JsonException ex) {
+        catch (Exception ex) when (ex is JsonException or ArgumentException) {
+            // ArgumentException: the repaired text is not valid UTF-16 — a lone surrogate, which is
+            // what a truncated emoji leaves behind. JsonDocument reports that as a transcoding
+            // failure rather than a JsonException, and it must not escape the valid-or-throw contract.
             throw new JsonRepairException($"Unable to repair the input into valid JSON: {JsonErrorMessage.WithoutPosition(ex)}", ex);
         }
 

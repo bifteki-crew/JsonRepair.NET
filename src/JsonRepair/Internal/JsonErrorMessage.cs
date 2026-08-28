@@ -16,7 +16,7 @@ internal static class JsonErrorMessage
     /// input, so quoting them in a message about "the input" points at the wrong place. Callers that
     /// need the raw offsets can read them from the inner exception.
     /// </summary>
-    public static string WithoutPosition(JsonException ex)
+    public static string WithoutPosition(Exception ex)
     {
         string message = ex.Message;
         int marker = message.IndexOf(PositionMarker, StringComparison.Ordinal);
