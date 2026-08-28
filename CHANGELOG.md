@@ -74,6 +74,20 @@ initialiser.
 - Both engines now report the same reason for the same input; previously the UTF-8 engine returned
   a bare "Unable to repair the input into valid JSON."
 
+### Performance
+
+Re-measured on an Apple M5 Pro (.NET 10.0.11, Arm64); see the README for the full table.
+
+The UTF-8 span path now allocates **32 bytes per call**, where 0.1.0 allocated none. The staging
+buffer introduced for the valid-or-throw contract is what guarantees a partially-repaired document
+never reaches your writer. The figure is flat regardless of payload size — its backing array comes
+from `ArrayPool<byte>.Shared` — and that path remains 1.4×–1.7× faster than the `string` API, which
+allocates in proportion to its input.
+
+Benchmark coverage was also incomplete: the suite had no UTF-8 benchmark at all, so this claim had
+never actually been measured. It has one now, and `benchmarks.yml` invokes BenchmarkDotNet properly
+(it was missing `--run`, so it only ever executed a stopwatch loop).
+
 ### Known limitations
 
 Input-relative error positions are **not** in this release, despite the tier description. The

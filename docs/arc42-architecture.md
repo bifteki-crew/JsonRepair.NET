@@ -21,7 +21,7 @@
 | Goal | Description | Metric / Target |
 | :--- | :--- | :--- |
 | **QG1: Throughput & Speed** | Process malformed JSON with minimal CPU overhead | 10x-50x faster than regex/Python implementations |
-| **QG2: Zero Allocation** | Zero heap allocations for inputs under 4KB using spans | 0 B allocated per op on warm path |
+| **QG2: Low Allocation** | UTF-8 span path allocates a constant amount, independent of payload size | 32 B per op, measured (was 0 B before the 0.2.0 valid-or-throw contract, which added a staging object so partially-repaired output never reaches the caller's writer) |
 | **QG3: Correctness & Safety** | Produce strictly valid JSON parseable by `System.Text.Json` | 100% test pass rate across edge-case matrix |
 | **QG4: Zero Core Dependencies** | Core `JsonRepair` library has zero external 3rd-party dependencies | Clean standard library dependency tree |
 

@@ -9,7 +9,8 @@ Console.WriteLine(" Framework: .NET 10 (net10.0)");
 Console.WriteLine("=================================================\n");
 
 if (args.Length > 0 && args[0].Equals("--run", StringComparison.OrdinalIgnoreCase)) {
-    BenchmarkRunner.Run<RepairBenchmarks>();
+    // Forward the remaining args so BenchmarkDotNet switches (--job, --filter, --exporters) work.
+    BenchmarkRunner.Run<RepairBenchmarks>(config: null, args: args[1..]);
 }
 else {
     Console.WriteLine("Running Quick Performance Verification Pass...");
