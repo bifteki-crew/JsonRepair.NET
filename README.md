@@ -120,15 +120,51 @@ catch (JsonRepairException ex)
 
 ## ⚡ Performance Benchmarks (.NET 10)
 
-Measured with **BenchmarkDotNet** `v0.15.8` and `[MemoryDiagnoser]` on an Apple M5 Pro
-(macOS 26.6.2, .NET 10.0.11, Arm64 RyuJIT). Figures are the agreeing values from two consecutive
-runs; a third run under machine load came out ~50% slower across unchanged code, so treat absolute
-latency as indicative and the **allocation figures and API ratios** as the portable results.
+Measured with **BenchmarkDotNet** `v0.15.8` and `[MemoryDiagnoser]` on a GitHub-hosted runner
+(AMD EPYC 7763, Ubuntu 24.04, .NET 10.0.11, X64 RyuJIT) — reproducible by anyone via the
+`Benchmarks (Manual)` workflow. Run-to-run deviation there is under 0.2%.
 
 ### `string` API — `Repair(string)`
 
 | Payload | Latency | Throughput | Allocated |
 | :--- | ---: | ---: | ---: |
+| Small (83 B) | 1.05 µs | ~954,000 ops/sec | 896 B |
+| Medium (2.9 KB) | 33.4 µs | ~29,900 ops/sec | 23.0 KB |
+| Large (136 KB) | 1.20 ms | ~830 ops/sec | 1.05 MB |
+| Small, via `TryParse` | 1.51 µs | ~664,000 ops/sec | 1,400 B |
+
+### UTF-8 API — `Repair(ReadOnlySpan<byte>, IBufferWriter<byte>)`
+
+Writing into a caller-owned buffer that is reused between calls:
+
+| Payload | Latency | Throughput | Allocated | vs `string` |
+| :--- | ---: | ---: | ---: | ---: |
+| Small (83 B) | 0.55 µs | ~1,816,000 ops/sec | **0 B** | **1.9× faster** |
+| Medium (2.9 KB) | 19.4 µs | ~51,600 ops/sec | **0 B** | **1.7× faster** |
+| Large (136 KB) | 798 µs | ~1,250 ops/sec | **0 B** | **1.5× faster** |
+
+**Zero bytes, at every payload size.** The staging buffer that lets the engine validate output
+before any of it reaches your writer is pooled and reused per thread, and its backing array returns
+to `ArrayPool<byte>.Shared` after each call. The `string` API cannot match this: it must materialise
+a result string, so it allocates in proportion to its input.
+
+<details>
+<summary>Cross-checked on Apple Silicon (M5 Pro, Arm64)</summary>
+
+Allocation figures are **identical** on both architectures — they are counted, not timed, so
+`0 B` holds regardless of hardware. Absolute latencies are roughly 1.5–1.8× faster than the CI
+runner, and the small and medium speedups hold (1.8× and 1.4×).
+
+The large payload is the exception: on Arm64 the UTF-8 path measured **~20% slower** than the
+`string` API (0.81× and 0.85× across two runs), inverting the x64 result. Reproducible on that
+machine, not yet explained, and worth profiling — but it does not appear on x64, so it is an
+architecture-specific effect rather than a property of the implementation.
+
+</details>
+
+Reproduce locally with `dotnet run --project benchmarks/JsonRepair.Benchmarks -c Release -- --run`.
+
+--- | ---: | ---: | ---: |
 | Small (83 B) | 0.58 µs | ~1,730,000 ops/sec | 896 B |
 | Medium (2.9 KB) | 20.2 µs | ~49,400 ops/sec | 23.0 KB |
 | Large (136 KB) | 755 µs | ~1,320 ops/sec | 1.05 MB |

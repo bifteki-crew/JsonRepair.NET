@@ -86,9 +86,9 @@ does not then pin a large array. A re-entrant repair — your `IBufferWriter` ca
 engine while it is being written to — is handed its own buffer rather than corrupting the outer
 one.
 
-**Choose the API by payload size.** The UTF-8 path is ~1.8× faster on small input and ~1.4× on a
-few KB, the range LLM output occupies. Past ~100 KB it measured consistently *slower* than the
-`string` API (0.8×), an inversion that reproduces across runs and is not yet explained.
+The UTF-8 path is faster at every size measured on x64 — 1.9× small, 1.7× medium, 1.5× large.
+On Arm64 the large-payload case inverts and measures ~20% slower than the `string` API; that is
+reproducible on Apple Silicon, absent on x64, and not yet explained.
 
 Benchmark coverage was incomplete before this release: the suite had no UTF-8 benchmark at all, so
 the zero-allocation claim had never actually been measured. It has three now, and `benchmarks.yml`
