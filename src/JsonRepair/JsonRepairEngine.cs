@@ -88,7 +88,7 @@ public static class JsonRepairEngine
         options ??= JsonRepairOptions.Default;
 
         // Stage into a pooled buffer so the output can be validated before it reaches the caller's writer
-        using var buffer = new PooledBufferWriter(utf8Input.Length + 32);
+        using var buffer = PooledBufferWriter.Rent(utf8Input.Length + 32);
         Span<byte> stackBuffer = stackalloc byte[64];
         var stateMachine = new Utf8JsonRepairStateMachine(utf8Input, options, buffer, stackBuffer);
         stateMachine.Repair();

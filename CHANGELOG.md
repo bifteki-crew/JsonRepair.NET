@@ -78,15 +78,22 @@ initialiser.
 
 Re-measured on an Apple M5 Pro (.NET 10.0.11, Arm64); see the README for the full table.
 
-The UTF-8 span path now allocates **32 bytes per call**, where 0.1.0 allocated none. The staging
-buffer introduced for the valid-or-throw contract is what guarantees a partially-repaired document
-never reaches your writer. The figure is flat regardless of payload size — its backing array comes
-from `ArrayPool<byte>.Shared` — and that path remains 1.4×–1.7× faster than the `string` API, which
-allocates in proportion to its input.
+**The UTF-8 span path allocates 0 B per call, at every payload size**, preserving 0.1.0's
+guarantee. The valid-or-throw contract needs a staging buffer so a partially-repaired document
+never reaches your writer; that buffer is pooled and reused per thread, and its backing array is
+returned to `ArrayPool<byte>.Shared` after each call, so a thread that repairs one large document
+does not then pin a large array. A re-entrant repair — your `IBufferWriter` calling back into the
+engine while it is being written to — is handed its own buffer rather than corrupting the outer
+one.
 
-Benchmark coverage was also incomplete: the suite had no UTF-8 benchmark at all, so this claim had
-never actually been measured. It has one now, and `benchmarks.yml` invokes BenchmarkDotNet properly
-(it was missing `--run`, so it only ever executed a stopwatch loop).
+**Choose the API by payload size.** The UTF-8 path is ~1.8× faster on small input and ~1.4× on a
+few KB, the range LLM output occupies. Past ~100 KB it measured consistently *slower* than the
+`string` API (0.8×), an inversion that reproduces across runs and is not yet explained.
+
+Benchmark coverage was incomplete before this release: the suite had no UTF-8 benchmark at all, so
+the zero-allocation claim had never actually been measured. It has three now, and `benchmarks.yml`
+invokes BenchmarkDotNet properly — it was missing `--run`, so it only ever executed a stopwatch
+loop.
 
 ### Known limitations
 

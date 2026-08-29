@@ -8,7 +8,7 @@
     <!-- NuGet Package Metadata (PackageVersion is overridden from the git tag by publish.yml) -->
     <PackageId>JsonRepair</PackageId>
     <Version>0.2.0</Version>
-    <Description>High-performance JSON repair for .NET: fixes malformed, truncated LLM and legacy JSON (markdown fences, single quotes, unquoted keys, Python/JS literals, trailing commas, mismatched brackets) into valid JSON parseable by System.Text.Json. Low-allocation UTF-8 span API writes into your own IBufferWriter.</Description>
+    <Description>High-performance JSON repair for .NET: fixes malformed, truncated LLM and legacy JSON (markdown fences, single quotes, unquoted keys, Python/JS literals, trailing commas, mismatched brackets) into valid JSON parseable by System.Text.Json. Zero-allocation UTF-8 span API writes into your own IBufferWriter.</Description>
     <PackageTags>json;jsonrepair;repair;llm;ai;openai;anthropic;parsing;system-text-json</PackageTags>
     <PackageProjectUrl>https://github.com/bifteki-crew/JsonRepair.NET</PackageProjectUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
