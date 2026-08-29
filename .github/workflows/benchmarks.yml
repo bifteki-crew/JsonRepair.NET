@@ -18,4 +18,5 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Run BenchmarkDotNet Suite
-        run: dotnet run --project benchmarks/JsonRepair.Benchmarks -c Release
+        # --run is required: without it the harness only does the quick stopwatch pass.
+        run: dotnet run --project benchmarks/JsonRepair.Benchmarks -c Release -- --run

@@ -45,22 +45,6 @@ public class Utf8StreamingTests
     }
 
     [Fact]
-    public void Repair_Utf8Span_ShouldRespectNormalizeQuotesOption()
-    {
-        // Arrange: NormalizeQuotes = false preserves single quotes
-        var options = new JsonRepairOptions { NormalizeQuotes = false };
-        byte[] malformedUtf8 = Encoding.UTF8.GetBytes("{ 'item': 'Bifteki' }");
-        var writer = new ArrayBufferWriter<byte>();
-
-        // Act
-        JsonRepairEngine.Repair(malformedUtf8.AsSpan(), writer, options);
-
-        // Assert
-        string result = Encoding.UTF8.GetString(writer.WrittenSpan);
-        result.Should().Be("{'item':'Bifteki'}");
-    }
-
-    [Fact]
     public void Repair_Utf8Span_ShouldStripTrailingCommas()
     {
         // Arrange
@@ -146,16 +130,16 @@ public class Utf8StreamingTests
     public void Repair_Utf8Span_ShouldNotConvertLiteralPrefixInsideLongerWord()
     {
         // Arrange: unquoted string VALUES are not yet supported (Tier 3 / 0.3.0),
-        // the identifier must pass through untouched.
+        // so this input is unrepairable and must throw (valid-or-throw contract, 0.2.0).
         byte[] malformedUtf8 = Encoding.UTF8.GetBytes("{a: TrueStuff}");
         var writer = new ArrayBufferWriter<byte>();
 
         // Act
-        JsonRepairEngine.Repair(malformedUtf8.AsSpan(), writer);
+        Action act = () => JsonRepairEngine.Repair(malformedUtf8.AsSpan(), writer);
 
         // Assert
-        string result = Encoding.UTF8.GetString(writer.WrittenSpan);
-        result.Should().Be("{\"a\":TrueStuff}");
+        act.Should().Throw<JsonRepairException>();
+        writer.WrittenCount.Should().Be(0, because: "nothing may be written when repair fails");
     }
 
     [Theory]

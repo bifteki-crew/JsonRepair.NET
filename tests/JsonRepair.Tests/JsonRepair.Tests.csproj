@@ -20,6 +20,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="TestCases\UpstreamCorpus\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\JsonRepair\JsonRepair.csproj" />
   </ItemGroup>
 
