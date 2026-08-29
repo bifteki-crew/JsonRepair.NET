@@ -8,7 +8,7 @@ changes, each patch is bug fixes only. Pin an exact minor in production.
 
 ---
 
-## [0.2.0] — Valid-or-throw contract
+## [0.2.0] — 2026-08-29 — Valid-or-throw contract
 
 ### ⚠️ Breaking changes
 
@@ -108,7 +108,7 @@ and number normalisation (32), both scheduled for 0.3.0.
 
 ---
 
-## [0.1.0] — Initial release
+## [0.1.0] — 2026-07-25 — Initial release
 
 First public release on [nuget.org](https://www.nuget.org/packages/JsonRepair/).
 

@@ -70,8 +70,10 @@ public class UpstreamCorpusTests
         }
 
         // acceptable as well: our engine is more lenient, but then the output must be valid
-        using var doc = JsonDocument.Parse(actual);
-        doc.RootElement.Should().NotBeNull(because: $"corpus case {id} must produce valid JSON");
+        // The parse is the assertion: anything RootElement could be asked afterwards is trivially
+        // true once it succeeds. Wrapped so a failure names the case and shows the output.
+        Action parse = () => JsonDocument.Parse(actual).Dispose();
+        parse.Should().NotThrow(because: $"corpus case {id} must produce valid JSON, got: {Show(actual)}");
     }
 
     [Fact]
