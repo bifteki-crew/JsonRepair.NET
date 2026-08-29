@@ -1,0 +1,87 @@
+name: Repair failure
+description: JsonRepair.NET returned the wrong JSON, or threw on input you expected it to repair.
+title: "[repair] "
+labels: ["repair-failure"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Every case here becomes a corpus entry before it becomes a fix, so the
+        three fields below are what actually matter — a runnable input is worth more than a description.
+
+        Before filing, it is worth checking the
+        [Known Limitations](https://github.com/bifteki-crew/JsonRepair.NET#-known-limitations-0x)
+        table: unquoted string values, ellipsis, smart quotes, NDJSON and several other categories
+        are known gaps scheduled for 0.3.0/0.4.0, and are tracked in
+        [docs/UPSTREAM.md](https://github.com/bifteki-crew/JsonRepair.NET/blob/main/docs/UPSTREAM.md).
+        A report against one of those is still useful — it tells us which gap to prioritise.
+
+  - type: textarea
+    id: input
+    attributes:
+      label: Input
+      description: The exact malformed JSON you passed in. Paste it raw — do not tidy it up.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected output
+      description: The JSON you expected back.
+      render: json
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual output
+      description: What you got back — or the full exception, if it threw.
+      render: text
+    validations:
+      required: true
+
+  - type: dropdown
+    id: api
+    attributes:
+      label: Which API?
+      options:
+        - "Repair(string)"
+        - "TryRepair(string, out string?)"
+        - "Repair(ReadOnlySpan<byte>, IBufferWriter<byte>)"
+        - "TryRepair(ReadOnlySpan<byte>, IBufferWriter<byte>)"
+        - "Repair(ReadOnlySequence<byte>, IBufferWriter<byte>)"
+        - "RepairAsync(Stream, Stream)"
+        - "Deserialize<T> / TryDeserialize<T>"
+        - "TryParse"
+        - "Other / not sure"
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: JsonRepair version
+      description: The exact package version, e.g. 0.2.0.
+      placeholder: "0.2.0"
+    validations:
+      required: true
+
+  - type: input
+    id: runtime
+    attributes:
+      label: Runtime and OS
+      description: e.g. .NET 10.0.11, Windows 11 x64 — architecture matters for a few known issues.
+      placeholder: ".NET 10.0.11, Ubuntu 24.04 x64"
+    validations:
+      required: false
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: Where the JSON came from (which model, which API) often explains the failure mode.
+    validations:
+      required: false

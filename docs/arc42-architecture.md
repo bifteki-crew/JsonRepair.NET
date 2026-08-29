@@ -88,8 +88,9 @@ graph TD
 ```
 
 #### Level 1 Component Descriptions
-- **`JsonRepairEngine`**: The facade class exposing `Repair()`, `TryParse()`, and extension methods.
-- **`JsonRepairOptions`**: Configuration record toggling specific repair rules (e.g. quote normalization, structure auto-closing, comment stripping).
+- **`JsonRepairEngine`**: The static facade exposing `Repair()` / `TryRepair()` over `string`, `ReadOnlySpan<byte>`, `ReadOnlySequence<byte>` and `Stream`, plus `TryParse()`, `Deserialize<T>()` and `TryDeserialize<T>()`.
+- **`JsonRepairException`**: Thrown when input cannot be repaired into valid JSON. Derives from `JsonException` so existing catch clauses keep working.
+- **`JsonRepairOptions`**: Configuration record toggling specific repair rules (markdown fence stripping, unquoted-key quoting, structure auto-closing, comment stripping, literal conversion).
 - **`JsonRepairStateMachine`**: High-performance ref struct driving state transitions and character emitting.
 
 ---
@@ -136,7 +137,10 @@ sequenceDiagram
 - Ref structs prevent allocation of iterator state on the GC heap.
 
 ### 8.2 Error Handling & Resilience
-- **`TryParse` Pattern**: `JsonRepairEngine.TryParse` guarantees exception-free parsing for high-throughput API endpoints.
+- **Valid-or-throw contract (0.2.0)**: `Repair` validates its own output before returning it. Either the caller receives JSON that parses, or a `JsonRepairException` is thrown. Best-effort text that fails later inside the caller's deserializer is no longer a possible outcome.
+- **Nothing partial escapes**: the UTF-8 path stages into a pooled buffer and copies to the caller's `IBufferWriter<byte>` only after validation, so a rejected repair writes nothing. The `ReadOnlySequence` and `Stream` overloads delegate to the span path, so the contract has no back doors.
+- **`Try*` Pattern**: `TryRepair`, `TryParse` and `TryDeserialize<T>` give the same guarantee exception-free, for high-throughput endpoints.
+- **Error positions are output-relative**: the engine repairs optimistically and validates afterwards, so the only offsets available describe the repaired output, not the caller's input. They are therefore kept off the message and left on `InnerException`. Input-relative positions require the grammar-based rework scheduled for 0.3.0.
 
 ---
 
@@ -146,6 +150,11 @@ sequenceDiagram
 - **Context**: Legacy JSON repair tools rely on multi-pass regex replacements.
 - **Decision**: Implement a custom span-based state machine.
 - **Consequences**: Superior performance (10x-50x speedup), zero heap allocations, zero regex catastrophic backtracking risks.
+
+### ADR-03: Validate Before Returning, Rather Than Repair Best-Effort
+- **Context**: Through 0.1.0 `Repair` returned whatever the state machine produced. For unrepairable input that was invalid JSON, so the failure surfaced later at the caller's `Deserialize` call with a message pointing at the wrong thing. Worse, some inputs produced *valid* JSON that misrepresented the input.
+- **Decision**: Validate the repaired output and throw `JsonRepairException` when it does not parse. Accept a staging buffer on the UTF-8 path so nothing partial reaches the caller.
+- **Consequences**: Failure surfaces at the call that caused it. Repair categories the engine cannot yet handle now throw instead of returning something broken, which is visible as a lower reported parity number against upstream — an honest one. The staging buffer is pooled and reused per thread, so the guarantee costs no per-call allocation.
 
 ### ADR-02: Zero External Dependencies for Core Package
 - **Context**: Minimizing supply-chain vulnerability and dependency conflicts for consumer applications.
@@ -170,8 +179,11 @@ graph TD
 
 | Risk | Mitigation | Status |
 | :--- | :--- | :--- |
-| **Deeply Nested Malformed JSON** | Stack limit check in state machine to prevent stack overflow | Planned |
+| **Deeply Nested Malformed JSON** | Growable `ArrayPool`-backed stack in both engines; validators use an unbounded `MaxDepth` so they cannot reject output the engine can produce | Implemented & Tested |
 | **Ambiguous Unquoted Strings** | Strict state checking between key vs value contexts | Implemented & Tested |
+| **Engine divergence** | Two independent implementations can drift. A fuzz invariant fails the build on any disagreement outside the two recorded cases (root-level trailing comma; non-ASCII whitespace) — see [UPSTREAM.md](UPSTREAM.md) | Monitored |
+| **Upstream parity gap** | 191/427 of the ported josdejong corpus passes; all 242 gaps categorised and ratcheted so the baseline can only shrink | Tracked, Tiers 3–4 |
+| **Arm64 large-payload inversion** | Past ~100 KB the UTF-8 path measures ~20% slower than the `string` API on Apple Silicon, but faster on x64. Reproducible, unexplained | Open, needs profiling |
 
 ---
 
