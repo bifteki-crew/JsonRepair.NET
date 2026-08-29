@@ -71,7 +71,8 @@ public class UpstreamCorpusTests
 
         // acceptable as well: our engine is more lenient, but then the output must be valid
         using var doc = JsonDocument.Parse(actual);
-        doc.RootElement.Should().NotBeNull(because: $"corpus case {id} must produce valid JSON");
+        doc.RootElement.ValueKind.Should().NotBe(JsonValueKind.Undefined,
+            because: $"corpus case {id} must produce valid JSON");
     }
 
     [Fact]

@@ -13,9 +13,10 @@ namespace JsonRepair.Tests.Fuzzing;
 /// and a failure replays exactly; set JSONREPAIR_FUZZ_SEEDS to widen a local hunt.
 /// </summary>
 /// <remarks>
-/// These assert with <see cref="Assert.True(bool, string)"/> rather than FluentAssertions because the
-/// failure text embeds raw JSON, and braces in a FluentAssertions "because" string are treated as
-/// format placeholders.
+/// These assert with <see cref="Assert.True(bool, string)"/> rather than FluentAssertions so a run can
+/// report every violation it found as a plain multi-line block, rather than one assertion's worth
+/// wrapped in "Expected ... because ...". Braces in the JSON are safe either way — FluentAssertions 8
+/// does not treat a "because" string as a format template.
 /// </remarks>
 public class FuzzTests
 {
@@ -187,7 +188,7 @@ public class FuzzTests
                 continue;
             }
 
-            if (succeeded != direct is not null) {
+            if (succeeded != (direct is not null)) {
                 failures.Add(Describe(seed, i, "tryrepair", input,
                     $"TryRepair returned {succeeded} but Repair {(direct is null ? "threw" : "succeeded")}"));
             }
