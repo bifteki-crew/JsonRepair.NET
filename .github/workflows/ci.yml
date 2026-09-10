@@ -34,7 +34,9 @@ jobs:
         run: |
           out=$(dotnet list package --vulnerable --include-transitive 2>&1)
           echo "$out"
-          if echo "$out" | grep -qE '^[[:space:]]+> '; then
+          # Leading whitespace optional: the table currently indents rows, but the gate must not
+          # depend on that formatting staying put.
+          if echo "$out" | grep -qE '^[[:space:]]*> '; then
             echo "::error::Vulnerable package(s) found - see the table above"
             exit 1
           fi

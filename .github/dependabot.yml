@@ -15,7 +15,7 @@ updates:
           - "xunit*"
           - "Microsoft.NET.Test.Sdk"
           - "coverlet.*"
-          - "FluentAssertions"
+          - "AwesomeAssertions"
 
   - package-ecosystem: github-actions
     directory: "/"
