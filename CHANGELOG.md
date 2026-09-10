@@ -25,6 +25,13 @@ changes, each patch is bug fixes only. Pin an exact minor in production.
 
 ### Changed
 
+- **Replaced FluentAssertions with [AwesomeAssertions](https://github.com/AwesomeAssertions/AwesomeAssertions)
+  9.6.0 (Apache-2.0).** FluentAssertions changed licence at 8.0 to the Xceed Community License,
+  which permits non-commercial use only and requires a paid commercial licence otherwise. An
+  MIT-licensed project should not need a commercial licence to run its own test suite, and
+  contributors working in a commercial context would have needed one. AwesomeAssertions is the
+  Apache-2.0 community fork; the assertion API is unchanged, so only the `using` lines moved.
+  Test-only; the shipped package has no dependencies either way.
 - Test tooling updated: `Microsoft.NET.Test.Sdk` 17.14.1 → 18.10.0, `coverlet.collector`
   6.0.4 → 10.0.1, `xunit.runner.visualstudio` 3.1.4 → 4.0.0. Test-only; not shipped.
 

@@ -2,7 +2,7 @@ using System;
 using System.Buffers;
 using System.Text;
 using System.Text.Json;
-using FluentAssertions;
+using AwesomeAssertions;
 using Xunit;
 
 namespace JsonRepair.Tests;

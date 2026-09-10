@@ -1,6 +1,6 @@
 using System.Buffers;
 using System.Text;
-using FluentAssertions;
+using AwesomeAssertions;
 using JsonRepair.Tests.TestCases;
 using Xunit;
 
