@@ -1,0 +1,24 @@
+version: 2
+updates:
+  # Security alerts are already enabled on this repo, but they did not catch
+  # CVE-2026-62900 in a transitive build-time dependency. These version updates keep
+  # packages current so that class of drift does not accumulate between releases.
+  - package-ecosystem: nuget
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # Test tooling moves together and is not shipped; one PR rather than four.
+      test-tooling:
+        patterns:
+          - "xunit*"
+          - "Microsoft.NET.Test.Sdk"
+          - "coverlet.*"
+          - "AwesomeAssertions"
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3

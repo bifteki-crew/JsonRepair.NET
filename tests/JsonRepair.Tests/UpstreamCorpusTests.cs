@@ -1,7 +1,7 @@
 using System.Buffers;
 using System.Text;
 using System.Text.Json;
-using FluentAssertions;
+using AwesomeAssertions;
 using JsonRepair.Tests.TestCases;
 using Xunit;
 using Xunit.Abstractions;
