@@ -26,6 +26,20 @@ jobs:
       - name: Restore Dependencies
         run: dotnet restore
 
+      # dotnet list exits 0 even when it finds something, so the table rows are the signal.
+      # CVE-2026-62900 reached this repo through a transitive build-time dependency and Dependabot
+      # did not flag it; this step is what catches that class. Add continue-on-error: true if a
+      # freshly published advisory should warn rather than block unrelated work.
+      - name: Check for Vulnerable Dependencies
+        run: |
+          out=$(dotnet list package --vulnerable --include-transitive 2>&1)
+          echo "$out"
+          if echo "$out" | grep -qE '^[[:space:]]+> '; then
+            echo "::error::Vulnerable package(s) found - see the table above"
+            exit 1
+          fi
+          echo "No vulnerable packages."
+
       - name: Build Solution (Release)
         run: dotnet build --configuration Release --no-restore /p:TreatWarningsAsErrors=true
 

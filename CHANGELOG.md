@@ -8,6 +8,28 @@ changes, each patch is bug fixes only. Pin an exact minor in production.
 
 ---
 
+## [Unreleased]
+
+### Security
+
+- Removed the `Microsoft.SourceLink.GitHub` package reference, which pulled
+  `Microsoft.Build.Tasks.Git` 8.0.0 — subject to CVE-2026-62900 (.NET information disclosure,
+  medium), with no patched version on the 8.0.x line. **Published packages were never affected**:
+  SourceLink was a build-time-only reference (`PrivateAssets="All"`) and `JsonRepair` ships with
+  zero runtime dependencies. SourceLink itself is unchanged — it has been part of the .NET SDK
+  since .NET 8, so the package was redundant; the commit-pinned source mapping is still in the
+  symbol package.
+- CI now fails on any vulnerable package, direct or transitive. Dependabot alerts are enabled on
+  this repository but did not flag the above, so this closes that gap.
+- Added `.github/dependabot.yml` for weekly NuGet and GitHub Actions version updates.
+
+### Changed
+
+- Test tooling updated: `Microsoft.NET.Test.Sdk` 17.14.1 → 18.10.0, `coverlet.collector`
+  6.0.4 → 10.0.1, `xunit.runner.visualstudio` 3.1.4 → 4.0.0. Test-only; not shipped.
+
+---
+
 ## [0.2.0] — 2026-08-29 — Valid-or-throw contract
 
 ### ⚠️ Breaking changes
