@@ -268,8 +268,13 @@ public static class JsonRepairEngine
                 continue;
             }
 
-            // Single line comment //
+            // Single line comment //. A scheme separator ("https://") is a value, not a comment.
             if (c == '/' && next == '/') {
+                if (IsUrlSchemeImmediatelyBefore(input, i)) {
+                    sb.Append("//");
+                    i++;
+                    continue;
+                }
                 i += 2;
                 while (i < input.Length && input[i] is not '\n' and not '\r') {
                     i++;
@@ -296,6 +301,26 @@ public static class JsonRepairEngine
         }
 
         return sb.ToString();
+    }
+
+    private static bool IsUrlSchemeImmediatelyBefore(ReadOnlySpan<char> text, int slashIndex)
+    {
+        if (slashIndex < 1 || text[slashIndex - 1] != ':') {
+            return false;
+        }
+        if (slashIndex + 1 >= text.Length || text[slashIndex + 1] != '/') {
+            return false;
+        }
+
+        int colon = slashIndex - 1;
+        int schemeStart = colon - 1;
+        while (schemeStart >= 0 && text[schemeStart] is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z')) {
+            schemeStart--;
+        }
+        schemeStart++;
+
+        ReadOnlySpan<char> scheme = text.Slice(schemeStart, colon - schemeStart);
+        return scheme is "http" or "https" or "ftp" or "mailto" or "file" or "data" or "irc";
     }
 
     private static bool IsEscaped(ReadOnlySpan<char> span, int index)

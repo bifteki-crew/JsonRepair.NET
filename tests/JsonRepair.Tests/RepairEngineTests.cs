@@ -59,16 +59,14 @@ public class RepairEngineTests
     public void Repair_ShouldNotConvertLiteralPrefixInsideLongerWord()
     {
         // Arrange: "TrueStuff" starts with "True" but is one identifier.
-        // Unquoted string VALUES are not yet supported (Tier 3 / 0.3.0), so this
-        // input is unrepairable and must throw rather than silently emit
-        // corrupted JSON like {"a":true,"Stuff"} (valid-or-throw contract, 0.2.0).
+        // It is an unquoted string value, not the literal true followed by "Stuff".
         string malformed = "{a: TrueStuff}";
 
         // Act
-        Action act = () => JsonRepairEngine.Repair(malformed);
+        string repaired = JsonRepairEngine.Repair(malformed);
 
         // Assert
-        act.Should().Throw<JsonRepairException>();
+        repaired.Should().Be("{\"a\":\"TrueStuff\"}");
     }
 
     [Fact]

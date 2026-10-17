@@ -15,8 +15,9 @@ public class EngineAgreementTests
 {
     /// <summary>
     /// Inputs where dropped whitespace used to fuse two tokens into a value that was never in the input:
-    /// the UTF-8 engine turned <c>"8 67"</c> into <c>867</c> and <c>"n ull"</c> into <c>null</c>. Both
-    /// engines must reject these.
+    /// the UTF-8 engine turned <c>"8 67"</c> into <c>867</c>. A newline ends an unquoted value, so
+    /// <c>fal\nse</c> is two values and is not wrapped as NDJSON. Both engines must reject these.
+    /// Spaced text such as <c>n ull</c> is an unquoted string and is quoted instead.
     /// </summary>
     public static TheoryData<string> FusionCandidates => new()
     {
@@ -24,9 +25,7 @@ public class EngineAgreementTests
         "-2 7.241",       // across a negative sign
         "-8\n93",         // across a newline
         "1 89.402",       // integer then decimal
-        "n ull",          // a literal split by a space
-        "fal\nse",        // a literal split by a newline
-        "{\"a\": n ull}", // and the same in value position inside an object
+        "fal\nse",        // a literal split by a newline (newline ends an unquoted value; not NDJSON)
     };
 
     /// <summary>
@@ -46,6 +45,22 @@ public class EngineAgreementTests
             JsonRepairEngine.Repair(Encoding.UTF8.GetBytes(input).AsSpan(), writer);
         };
         viaUtf8.Should().Throw<JsonRepairException>(because: "the utf8 engine must not fuse tokens either");
+    }
+
+    /// <summary>
+    /// A space inside an unquoted value is part of that value. Quoting it is the repair;
+    /// folding the letters together into <c>null</c> is the fusion this guard forbids.
+    /// </summary>
+    [Theory]
+    [InlineData("n ull", "\"n ull\"")]
+    [InlineData("{\"a\": n ull}", "{\"a\":\"n ull\"}")]
+    public void BothEngines_ShouldQuoteSpacedUnquotedText(string input, string expected)
+    {
+        JsonRepairEngine.Repair(input).Should().Be(expected);
+
+        var writer = new ArrayBufferWriter<byte>();
+        JsonRepairEngine.Repair(Encoding.UTF8.GetBytes(input).AsSpan(), writer);
+        Encoding.UTF8.GetString(writer.WrittenSpan).Should().Be(expected);
     }
 
     /// <summary>

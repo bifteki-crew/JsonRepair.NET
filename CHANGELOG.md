@@ -10,6 +10,16 @@ changes, each patch is bug fixes only. Pin an exact minor in production.
 
 ## [Unreleased]
 
+### Added
+
+- **Unquoted string values** are repaired on both the string and UTF-8 engines.
+  `{a: hello}` becomes `{"a":"hello"}`, `{greeting: hello world}` becomes
+  `{"greeting":"hello world"}`, and `{a: TrueStuff}` becomes `{"a":"TrueStuff"}`.
+  Keys are still quoted as identifiers. `true`, `false`, `null`, and the existing
+  Python/JS literals (`None`, `True`, `False`, `undefined`, `NaN`) stay literals.
+  Whitespace-split numbers such as `8 67` still throw. Measured josdejong corpus
+  parity on the string engine is **230/427** (was 191/427).
+
 ### Security
 
 - Removed the `Microsoft.SourceLink.GitHub` package reference, which pulled
