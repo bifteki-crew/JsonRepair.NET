@@ -9,6 +9,10 @@
 | **`jsonrepair`** | Jos de Jong | JavaScript | ISC | [josdejong/jsonrepair](https://github.com/josdejong/jsonrepair) | `v3.15.0` |
 | **`json_repair`** | Mangiucugna | Python | MIT | [mangiucugna/json_repair](https://github.com/mangiucugna/json_repair) | `v0.61.7` |
 
+The cells above are the **pins**. Behavioural cross-checks and the ported corpus were run against these versions, not against whatever GitHub currently calls latest.
+
+**Explicitly lagging (checked 2026-10-17):** [mangiucugna/json_repair](https://github.com/mangiucugna/json_repair) has published **v0.64.0** (2026-10-09) and the releases between the pin and that tag (v0.62.0 through v0.63.5). The pin stays **v0.61.7**. Do not re-pin the corpus, the baseline, or the cross-check table just because a newer tag exists. josdejong/jsonrepair's latest tag is still **v3.15.0**.
+
 ---
 
 ## Measured Subset (as of 0.2.0)
@@ -91,10 +95,15 @@ The string and UTF-8 engines are separate implementations and do not yet agree e
   `JS215`, `JS216`, `JS217`), where the string engine repairs non-ASCII whitespace such as NBSP
   and U+3000 and the UTF-8 engine rejects it. These are the 6-case gap between the 242 baseline
   entries and the 236 that currently fail the string engine.
+- **Whitespace-only input:** `Repair(string)` returns `{}` for a null reference, a zero-length
+  string, and whitespace-only text (`string.IsNullOrWhiteSpace`). An empty UTF-8 span also
+  returns `{}`. A whitespace-only UTF-8 span throws `JsonRepairException` (`the repaired output
+  is empty`). A JSON string value made of two quote characters stays that value on both engines.
+  Not in `JsonEdgeCaseData`, and the fuzz harness does not generate it.
 
-Both are incompleteness, not fabrication. `Fuzz_BothEnginesShouldAgree` enforces that any *other*
-disagreement fails the build; it does not currently generate non-ASCII whitespace, which is why
-the second class came from the corpus rather than from fuzzing.
+These are incompleteness, not fabrication. `Fuzz_BothEnginesShouldAgree` enforces that any *other*
+disagreement it generates fails the build; it does not currently generate non-ASCII whitespace or
+whitespace-only input, which is why those classes are not caught by fuzzing.
 
 ---
 
@@ -104,6 +113,7 @@ To ensure `JsonRepair.NET` maintains full compatibility as upstream libraries ev
 
 1. **Automated Release Watcher**: A GitHub Action (`.github/workflows/upstream-watch.yml`) polls the GitHub API for new tags/releases on **both** upstream repositories weekly.
    (Note: `josdejong/jsonrepair` publishes tags only, no GitHub Releases — the watcher polls `/tags`.)
+   The watcher compares each API result to the **single version in the pin table above**. It must not scrape every ``repo@version`` token in this file: the change-log repeats `v3.15.0`, and an unanchored `grep -oP` then compares `v3.15.0` plus a second `v3.15.0` to the API's `v3.15.0` and always reports a new tag.
 2. **Upstream Test Vector Sync**: The josdejong suite is ported wholesale (see Measured Subset above). The mangiucugna corpus is **not yet ported** — it is required by 1.0.0 gate criterion 2.
 3. **Change Log Matrix**:
 
@@ -113,3 +123,4 @@ To ensure `JsonRepair.NET` maintains full compatibility as upstream libraries ev
 | **2026-07-25** | `v0.1.0` | `mangiucugna/json_repair@v0.61.7` | ⚠️ Subset | Pins corrected (previously phantom `v5.1.0` / stale `v0.30.0`); strict mode, schema-guided repair, `stream_stable` scheduled for Tiers 4–5 |
 | **2026-08-28** | `v0.2.0` | `josdejong/jsonrepair@v3.15.0` | ⚠️ Subset — **measured** | Corpus ported and running against both engines: 191/427 (44.7%), 242 categorised gaps. Replaces the previous unquantified "Subset" claim |
 | **2026-08-28** | `v0.2.0` | `mangiucugna/json_repair@v0.61.7` | ⚠️ Subset — behaviour cross-checked | Corpus not ported. Run directly to settle token-fusion semantics (see Behavioural cross-checks) |
+| **2026-10-17** | library `0.2.0`, pin unchanged | mangiucugna v0.64.0 (2026-10-09); josdejong still v3.15.0 | ⚠️ **Explicitly lagging** | v0.62.0 through v0.64.0 exist upstream. Corpus, baseline, and cross-checks stay on the pin. Not re-pinned. |
