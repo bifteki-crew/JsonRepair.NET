@@ -14,10 +14,12 @@ public class RepairBenchmarks
     private string _smallJson = null!;
     private string _mediumJson = null!;
     private string _largeJson = null!;
+    private string _unquotedJson = null!;
 
     private byte[] _smallUtf8 = null!;
     private byte[] _mediumUtf8 = null!;
     private byte[] _largeUtf8 = null!;
+    private byte[] _unquotedUtf8 = null!;
 
     // Reused across iterations: the UTF-8 API is designed to write into a buffer the caller owns,
     // so a per-iteration allocation here would measure the harness rather than the engine.
@@ -53,10 +55,24 @@ public class RepairBenchmarks
         sbLarge.AppendLine("] }");
         _largeJson = sbLarge.ToString();
 
+        // 4. Unquoted values — objects full of bare words, URLs (including // and %), and $ keys.
+        var sbUnquoted = new StringBuilder();
+        sbUnquoted.Append('{');
+        for (int i = 0; i < 40; i++) {
+            if (i > 0) {
+                sbUnquoted.Append(',');
+            }
+            sbUnquoted.Append($"key{i}: hello world {i}, url{i}: https://example.com/a/{i}/b%20c, note{i}: TrueStuff, $ref{i}: item {i}");
+        }
+        sbUnquoted.Append('}');
+        _unquotedJson = sbUnquoted.ToString();
+
         _smallUtf8 = Encoding.UTF8.GetBytes(_smallJson);
         _mediumUtf8 = Encoding.UTF8.GetBytes(_mediumJson);
         _largeUtf8 = Encoding.UTF8.GetBytes(_largeJson);
-        _writer = new ArrayBufferWriter<byte>(_largeUtf8.Length + 1024);
+        _unquotedUtf8 = Encoding.UTF8.GetBytes(_unquotedJson);
+        int writerCapacity = Math.Max(_largeUtf8.Length, _unquotedUtf8.Length) + 4096;
+        _writer = new ArrayBufferWriter<byte>(writerCapacity);
     }
 
     [Benchmark(Baseline = true)]
@@ -104,6 +120,20 @@ public class RepairBenchmarks
     {
         _writer.ResetWrittenCount();
         JsonRepairEngine.Repair(_largeUtf8, _writer);
+        return _writer.WrittenCount;
+    }
+
+    [Benchmark]
+    public string UnquotedValues_Repair()
+    {
+        return JsonRepairEngine.Repair(_unquotedJson);
+    }
+
+    [Benchmark]
+    public int UnquotedValues_RepairUtf8()
+    {
+        _writer.ResetWrittenCount();
+        JsonRepairEngine.Repair(_unquotedUtf8, _writer);
         return _writer.WrittenCount;
     }
 }

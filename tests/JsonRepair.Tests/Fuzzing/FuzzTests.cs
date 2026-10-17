@@ -93,9 +93,9 @@ public class FuzzTests
                 // is what josdejong does too. Pinned in EngineAgreementTests. The reverse direction,
                 // and any outright disagreement, is a defect and fails below.
                 //
-                // The reverse does occur once, on non-ASCII whitespace (NBSP, U+3000), where the string
-                // engine is the lenient one. This generator does not emit those characters, so that
-                // class shows up in the corpus rather than here; see docs/UPSTREAM.md.
+                // The reverse does occur once, on non-ASCII whitespace (U+3000 and similar), where the string
+                // engine is the lenient one. NBSP is whitespace on both engines. This generator does not
+                // emit those characters, so that class shows up in the corpus rather than here; see docs/UPSTREAM.md.
                 lenientUtf8++;
                 continue;
             }

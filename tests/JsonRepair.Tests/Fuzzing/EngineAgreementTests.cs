@@ -17,7 +17,7 @@ public class EngineAgreementTests
     /// Inputs where dropped whitespace used to fuse two tokens into a value that was never in the input:
     /// the UTF-8 engine turned <c>"8 67"</c> into <c>867</c>. A newline ends an unquoted value, so
     /// <c>fal\nse</c> is two values and is not wrapped as NDJSON. Both engines must reject these.
-    /// Spaced text such as <c>n ull</c> is an unquoted string and is quoted instead.
+    /// Spaced text such as <c>n ull</c> is quoted only inside an object or array; at the root it throws.
     /// </summary>
     public static TheoryData<string> FusionCandidates => new()
     {
@@ -48,11 +48,11 @@ public class EngineAgreementTests
     }
 
     /// <summary>
-    /// A space inside an unquoted value is part of that value. Quoting it is the repair;
-    /// folding the letters together into <c>null</c> is the fusion this guard forbids.
+    /// A space inside an unquoted value is part of that value when that value is inside a container.
+    /// Quoting it is the repair; folding the letters together into <c>null</c> is the fusion this guard forbids.
+    /// The same text at the root is prose and is rejected.
     /// </summary>
     [Theory]
-    [InlineData("n ull", "\"n ull\"")]
     [InlineData("{\"a\": n ull}", "{\"a\":\"n ull\"}")]
     public void BothEngines_ShouldQuoteSpacedUnquotedText(string input, string expected)
     {
@@ -69,8 +69,9 @@ public class EngineAgreementTests
     /// rejects the input instead. So this is the string engine lagging upstream, not the UTF-8 engine
     /// overreaching, and it closes when root-level trailing commas land in Tier 3.
     /// <para>
-    /// The other runs the opposite way: the string engine repairs non-ASCII whitespace (NBSP, U+3000)
-    /// that the UTF-8 engine rejects, covering 6 corpus cases. Both are recorded in docs/UPSTREAM.md.
+    /// The other runs the opposite way: the string engine repairs non-ASCII whitespace (U+3000 and
+    /// similar) that the UTF-8 engine rejects, covering 5 corpus cases. NBSP is whitespace on both.
+    /// Both are recorded in docs/UPSTREAM.md.
     /// </para>
     /// </summary>
     [Theory]

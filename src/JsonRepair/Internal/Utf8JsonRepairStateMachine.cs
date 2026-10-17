@@ -12,6 +12,7 @@ internal ref struct Utf8JsonRepairStateMachine
     private ByteStack _structureStack;
     private byte _lastWrittenByte;
     private bool _pendingComma;
+    private bool _skippedWhitespace;
 
     public Utf8JsonRepairStateMachine(ReadOnlySpan<byte> input, JsonRepairOptions options, IBufferWriter<byte> writer, Span<byte> stackBuffer)
     {
@@ -74,9 +75,21 @@ internal ref struct Utf8JsonRepairStateMachine
                 }
 
                 if (b is (byte)' ' or (byte)'\t' or (byte)'\n' or (byte)'\r') {
+                    // Remember the gap. Dropping it entirely would glue "fal\nse" into false and "n ull" into null.
+                    _skippedWhitespace = true;
                     index++;
                     continue;
                 }
+
+                // U+00A0 NO-BREAK SPACE. The string engine already skips it via char.IsWhiteSpace.
+                if (IsNbspAt(_input, index)) {
+                    _skippedWhitespace = true;
+                    index += 2;
+                    continue;
+                }
+
+                bool separatedByWhitespace = _skippedWhitespace;
+                _skippedWhitespace = false;
 
                 // Strip single-line (//) and multi-line (/* */) comments
                 if (b == (byte)'/' && _options.StripComments) {
@@ -168,8 +181,10 @@ internal ref struct Utf8JsonRepairStateMachine
                     continue;
                 }
 
-                // Object key position: inside '{' and not after ':' — literals there are keys and must be quoted, not converted
+                // Object key position: inside '{' and not after ':' — literals there are keys and must be quoted, not converted.
+                // Unquoted text is quoted only inside an object or array. Root prose stays prose and fails validation.
                 bool inKeyPosition = _structureStack.Count > 0 && _structureStack.Peek() == (byte)'{' && !expectedValue;
+                bool quoteAsValue = !inKeyPosition && _structureStack.Count > 0;
 
                 // Check for non-standard literals (None, True, False, undefined, NaN)
                 if (_options.ConvertNonStandardLiterals && !inKeyPosition && TryMatchLiteral(_input, index, out ReadOnlySpan<byte> repairedLiteral, out int literalLen)) {
@@ -197,7 +212,7 @@ internal ref struct Utf8JsonRepairStateMachine
                     // A digit run glued to more value text (a date, a UUID) is an unquoted string.
                     // A pure number token, even an invalid one such as "2." or "0789", is left as a
                     // number: repairing those is number normalization, a separate repair.
-                    if (len > 0 && (inKeyPosition || !ContinuesUnquotedValue(_input, index + len))) {
+                    if (len > 0 && !(quoteAsValue && ContinuesUnquotedValue(_input, index + len))) {
                         SeparateFromPreviousValue(expectedValue);
                         FlushPendingComma();
                         ReadOnlySpan<byte> numSpan = _input.Slice(index, len);
@@ -215,8 +230,8 @@ internal ref struct Utf8JsonRepairStateMachine
                     }
                 }
 
-                // Unquoted object keys stay identifiers (letters, digits, '_', '-', non-ASCII).
-                if (inKeyPosition && b is (>= (byte)'a' and <= (byte)'z') or (>= (byte)'A' and <= (byte)'Z') or (byte)'_' or >= 0x80) {
+                // Unquoted object keys stay identifiers (letters, digits, '_', '-', '$', non-ASCII).
+                if (inKeyPosition && b is (>= (byte)'a' and <= (byte)'z') or (>= (byte)'A' and <= (byte)'Z') or (byte)'_' or (byte)'$' or >= 0x80) {
                     SeparateFromPreviousValue(expectedValue);
                     FlushPendingComma();
                     int len = GetIdentifierLength(_input, index);
@@ -238,8 +253,8 @@ internal ref struct Utf8JsonRepairStateMachine
                     continue;
                 }
 
-                // Unquoted string values: {a: hello world}, [a, b], https://...
-                if (!inKeyPosition && (IsUnquotedValueStart(b) || b is >= (byte)'0' and <= (byte)'9' or (byte)'-')) {
+                // Unquoted string values inside an object or array: {a: hello world}, [a, b], https://...
+                if (quoteAsValue && (IsUnquotedValueStart(_input, index) || b is >= (byte)'0' and <= (byte)'9' or (byte)'-')) {
                     int len = ScanUnquotedValueLength(_input, index);
                     if (len > 0) {
                         SeparateFromPreviousValue(expectedValue);
@@ -249,6 +264,20 @@ internal ref struct Utf8JsonRepairStateMachine
                         index += len;
                         continue;
                     }
+                }
+
+                // Curly quotes end a value. Emit the three bytes raw so validation rejects them;
+                // converting typographic quotes is a separate repair.
+                if (IsCurlyQuoteAt(_input, index)) {
+                    WriteBytes(_input.Slice(index, 3));
+                    index += 3;
+                    continue;
+                }
+
+                // The string engine keeps one space between raw tokens. Without it, dropped
+                // whitespace fuses "n ull" into null and "fal\nse" into false.
+                if (separatedByWhitespace && IsAsciiLetterOrDigit(_lastWrittenByte) && IsAsciiLetterOrDigit(b)) {
+                    WriteByte((byte)' ');
                 }
 
                 FlushPendingComma();
@@ -370,7 +399,7 @@ internal ref struct Utf8JsonRepairStateMachine
                 i--;
                 leadingUnquoted = true;
             }
-            else if (IsUnquotedValueStart(b)) {
+            else if (IsUnquotedValueStart(span, i)) {
                 leadingUnquoted = true;
             }
 
@@ -503,11 +532,27 @@ internal ref struct Utf8JsonRepairStateMachine
         return false;
     }
 
-    // Requires a word boundary after the literal so longer identifiers like "TrueStuff" are not corrupted
+    // A literal ends at whitespace or a value stop. "trueble" and "null@example.com" are one token;
+    // "@" and "©" are not boundaries, so the word is not taken as the literal and then split.
     private static bool MatchLiteralWord(ReadOnlySpan<byte> slice, ReadOnlySpan<byte> word)
     {
         return slice.StartsWith(word)
-            && (slice.Length == word.Length || !IsIdentifierChar(slice[word.Length]));
+            && (slice.Length == word.Length || IsValueTokenBoundary(slice, word.Length));
+    }
+
+    private static bool IsValueTokenBoundary(ReadOnlySpan<byte> slice, int index)
+    {
+        if ((uint)index >= (uint)slice.Length) {
+            return true;
+        }
+        byte b = slice[index];
+        if (b is (byte)' ' or (byte)'\t' or (byte)'\n' or (byte)'\r') {
+            return true;
+        }
+        if (IsNbspAt(slice, index) || IsCurlyQuoteAt(slice, index)) {
+            return true;
+        }
+        return IsUnquotedValueStop(b);
     }
 
     private static bool IsIdentifierChar(byte b)
@@ -535,7 +580,7 @@ internal ref struct Utf8JsonRepairStateMachine
         int len = 0;
         while (start + len < span.Length) {
             byte b = span[start + len];
-            if (b is (>= (byte)'a' and <= (byte)'z') or (>= (byte)'A' and <= (byte)'Z') or (>= (byte)'0' and <= (byte)'9') or (byte)'_' or (byte)'-' or >= 0x80) {
+            if (b is (>= (byte)'a' and <= (byte)'z') or (>= (byte)'A' and <= (byte)'Z') or (>= (byte)'0' and <= (byte)'9') or (byte)'_' or (byte)'-' or (byte)'$' or >= 0x80) {
                 len++;
             }
             else {
@@ -552,8 +597,12 @@ internal ref struct Utf8JsonRepairStateMachine
         return b is (byte)',' or (byte)'[' or (byte)']' or (byte)'/' or (byte)'{' or (byte)'}' or (byte)'\n' or (byte)'+' or (byte)'"' or (byte)'\'';
     }
 
-    private static bool IsUnquotedValueStart(byte b)
+    private static bool IsUnquotedValueStart(ReadOnlySpan<byte> input, int index)
     {
+        if ((uint)index >= (uint)input.Length || IsCurlyQuoteAt(input, index)) {
+            return false;
+        }
+        byte b = input[index];
         return b is (>= (byte)'a' and <= (byte)'z') or (>= (byte)'A' and <= (byte)'Z') or (byte)'_' or (byte)'$' or >= 0x80;
     }
 
@@ -566,13 +615,17 @@ internal ref struct Utf8JsonRepairStateMachine
         if (b is (byte)' ' or (byte)'\t' or (byte)'\n' or (byte)'\r') {
             return false;
         }
+        // U+00A0 is whitespace, so [1\u00A0] stays a number. A curly quote ends the value.
+        if (IsNbspAt(input, index) || IsCurlyQuoteAt(input, index)) {
+            return false;
+        }
         return !IsUnquotedValueStop(b);
     }
 
     private static int ScanUnquotedValueLength(ReadOnlySpan<byte> input, int start)
     {
         int i = start;
-        while (i < input.Length && !IsUnquotedValueStop(input[i])) {
+        while (i < input.Length && !IsUnquotedValueStop(input[i]) && !IsCurlyQuoteAt(input, i)) {
             i++;
         }
 
@@ -600,13 +653,27 @@ internal ref struct Utf8JsonRepairStateMachine
         }
 
         ReadOnlySpan<byte> scheme = text.Slice(valueStart, slashIndex - 1 - valueStart);
-        return scheme.SequenceEqual("http"u8)
-            || scheme.SequenceEqual("https"u8)
-            || scheme.SequenceEqual("ftp"u8)
-            || scheme.SequenceEqual("mailto"u8)
-            || scheme.SequenceEqual("file"u8)
-            || scheme.SequenceEqual("data"u8)
-            || scheme.SequenceEqual("irc"u8);
+        return UrlSchemes.IsKnown(scheme);
+    }
+
+    // U+201C, U+201D, U+2018, U+2019. The leading byte alone is not enough: many other characters share E2.
+    private static bool IsCurlyQuoteAt(ReadOnlySpan<byte> input, int index)
+    {
+        if ((uint)index + 2 >= (uint)input.Length || input[index] != 0xE2 || input[index + 1] != 0x80) {
+            return false;
+        }
+        byte third = input[index + 2];
+        return third is 0x9C or 0x9D or 0x98 or 0x99;
+    }
+
+    private static bool IsNbspAt(ReadOnlySpan<byte> input, int index)
+    {
+        return (uint)index + 1 < (uint)input.Length && input[index] == 0xC2 && input[index + 1] == 0xA0;
+    }
+
+    private static bool IsAsciiLetterOrDigit(byte b)
+    {
+        return b is (>= (byte)'a' and <= (byte)'z') or (>= (byte)'A' and <= (byte)'Z') or (>= (byte)'0' and <= (byte)'9');
     }
 
     private static bool IsUrlChar(byte b)
@@ -614,7 +681,7 @@ internal ref struct Utf8JsonRepairStateMachine
         return b is (>= (byte)'a' and <= (byte)'z') or (>= (byte)'A' and <= (byte)'Z') or (>= (byte)'0' and <= (byte)'9')
             or (byte)'-' or (byte)'.' or (byte)'_' or (byte)'~' or (byte)':' or (byte)'/' or (byte)'?' or (byte)'#'
             or (byte)'@' or (byte)'!' or (byte)'$' or (byte)'&' or (byte)'\'' or (byte)'(' or (byte)')'
-            or (byte)'*' or (byte)'+' or (byte)';' or (byte)'=';
+            or (byte)'*' or (byte)'+' or (byte)';' or (byte)'=' or (byte)'%';
     }
 
     private void WriteQuoted(ReadOnlySpan<byte> value)

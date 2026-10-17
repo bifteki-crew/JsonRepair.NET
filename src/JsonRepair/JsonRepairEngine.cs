@@ -1,7 +1,6 @@
 using System;
 using System.Buffers;
 using System.IO;
-using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -42,19 +41,14 @@ public static class JsonRepairEngine
             span = StripMarkdownFences(span);
         }
 
-        // Step 2: Strip comments if enabled
-        string cleanInput;
-        if (options.StripComments) {
-            cleanInput = StripComments(span);
-            span = cleanInput.AsSpan();
-        }
-
-        // Step 3: Core State Machine Repair Pass
+        // Step 2: Core State Machine Repair Pass. Comments are stripped in the state machine,
+        // the same way as the UTF-8 engine: the newline after // stays a token boundary, and a
+        // later // inside a URL is consumed with the value rather than eaten as a comment.
         Span<char> stackBuffer = stackalloc char[64];
         var stateMachine = new JsonRepairStateMachine(span, options, stackBuffer);
         string repaired = stateMachine.Repair();
 
-        // Step 4: Valid-or-throw contract (0.2.0): never return invalid JSON
+        // Step 3: Valid-or-throw contract (0.2.0): never return invalid JSON
         try {
             // MaxDepth int.MaxValue, not 0: JsonDocumentOptions treats 0 as the 64-level default. The repair
             // engine supports arbitrary depth (growable stack), so the validator must not be stricter than it.
@@ -241,94 +235,5 @@ public static class JsonRepairEngine
         }
 
         return input.Trim();
-    }
-
-    private static string StripComments(ReadOnlySpan<char> input)
-    {
-        var sb = new StringBuilder(input.Length);
-        bool inString = false;
-        char quoteChar = '\0';
-
-        for (int i = 0; i < input.Length; i++) {
-            char c = input[i];
-            char next = i + 1 < input.Length ? input[i + 1] : '\0';
-
-            if (inString) {
-                sb.Append(c);
-                if (c == quoteChar && !IsEscaped(input, i)) {
-                    inString = false;
-                }
-                continue;
-            }
-
-            if (c is '"' or '\'') {
-                inString = true;
-                quoteChar = c;
-                sb.Append(c);
-                continue;
-            }
-
-            // Single line comment //. A scheme separator ("https://") is a value, not a comment.
-            if (c == '/' && next == '/') {
-                if (IsUrlSchemeImmediatelyBefore(input, i)) {
-                    sb.Append("//");
-                    i++;
-                    continue;
-                }
-                i += 2;
-                while (i < input.Length && input[i] is not '\n' and not '\r') {
-                    i++;
-                }
-                continue;
-            }
-
-            // Multi-line comment /* */
-            if (c == '/' && next == '*') {
-                i += 2;
-                while (i + 1 < input.Length && !(input[i] == '*' && input[i + 1] == '/')) {
-                    i++;
-                }
-                if (i + 1 < input.Length && input[i] == '*' && input[i + 1] == '/') {
-                    i++; // Skip closing '/'
-                }
-                else {
-                    i = input.Length; // Unterminated block comment at end of input
-                }
-                continue;
-            }
-
-            sb.Append(c);
-        }
-
-        return sb.ToString();
-    }
-
-    private static bool IsUrlSchemeImmediatelyBefore(ReadOnlySpan<char> text, int slashIndex)
-    {
-        if (slashIndex < 1 || text[slashIndex - 1] != ':') {
-            return false;
-        }
-        if (slashIndex + 1 >= text.Length || text[slashIndex + 1] != '/') {
-            return false;
-        }
-
-        int colon = slashIndex - 1;
-        int schemeStart = colon - 1;
-        while (schemeStart >= 0 && text[schemeStart] is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z')) {
-            schemeStart--;
-        }
-        schemeStart++;
-
-        ReadOnlySpan<char> scheme = text.Slice(schemeStart, colon - schemeStart);
-        return scheme is "http" or "https" or "ftp" or "mailto" or "file" or "data" or "irc";
-    }
-
-    private static bool IsEscaped(ReadOnlySpan<char> span, int index)
-    {
-        int backslashCount = 0;
-        for (int i = index - 1; i >= 0 && span[i] == '\\'; i--) {
-            backslashCount++;
-        }
-        return (backslashCount % 2) != 0;
     }
 }

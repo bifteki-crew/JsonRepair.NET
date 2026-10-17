@@ -171,21 +171,23 @@ Reproduce locally with `dotnet run --project benchmarks/JsonRepair.Benchmarks -c
 The engine repairs the most common LLM/legacy failure modes (see above). Coverage against the
 upstream [josdejong/jsonrepair](https://github.com/josdejong/jsonrepair) suite is **measured, not
 estimated**: its corpus is ported and runs against both engines on every build, currently at
-**230/427 (53.9%)** with every gap categorised. Unsupported input **throws** rather than returning
+**215/427 (50.4%)** with every gap categorised. Unsupported input **throws** rather than returning
 something broken.
 
 The largest gaps, by ported corpus cases:
 
 | Not yet repaired | Cases | Planned |
 | :--- | ---: | :--- |
-| Unquoted string *values* — `{a: hello}` | 34 | 0.3.0 |
+| Unquoted string *values* — root prose, missing end quotes, escapes | 49 | 0.3.0 |
 | Number edge cases — `2.`, `-.5`, `001`, `2e` | 32 | 0.3.0 |
 | Unescaped-quote heuristics — `{'it's'}` | 17 | 0.3.0 |
 | Ellipsis — `[1, 2, ...]` | 18 | 0.3.0 |
 | HTML entities — `&quot;` | 16 | 0.5.0+ |
 | Smart/typographic quotes — `“…”` `‘…’` | 14 | 0.3.0 |
 | Missing colons — `{a 1}` | 10 | 0.3.0 |
-| Special unicode whitespace — NBSP, U+3000 | 9 | 0.3.0 |
+| Special unicode whitespace — U+2000, U+3000 (NBSP is whitespace) | 8 | 0.3.0 |
+| `/` and `+` end a value — `src/app.cs`, `a/b`, `C++` throw | — | by design |
+| `{a: b c: d}` (no comma, one line) is one string `{"a":"b c: d"}` | — | by design |
 | Leading commas — `[,1]` | 8 | 0.3.0 |
 | NDJSON / multiple root values | 7 | 0.4.0 |
 | Missing values — `{"a":}` | 6 | 0.3.0 |
