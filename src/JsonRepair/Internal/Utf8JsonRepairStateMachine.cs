@@ -88,10 +88,9 @@ internal ref struct Utf8JsonRepairStateMachine
                     continue;
                 }
 
-                bool separatedByWhitespace = _skippedWhitespace;
-                _skippedWhitespace = false;
-
-                // Strip single-line (//) and multi-line (/* */) comments
+                // Strip single-line (//) and multi-line (/* */) comments. Do this before clearing the
+                // whitespace flag: a comment is itself a boundary, and whitespace before it must
+                // still separate the tokens on either side ("n /*x*/ull" must not become null).
                 if (b == (byte)'/' && _options.StripComments) {
                     byte next = index + 1 < _input.Length ? _input[index + 1] : (byte)0;
                     if (next == (byte)'/') {
@@ -99,6 +98,7 @@ internal ref struct Utf8JsonRepairStateMachine
                         while (index < _input.Length && _input[index] is not (byte)'\n' and not (byte)'\r') {
                             index++;
                         }
+                        _skippedWhitespace = true;
                         continue;
                     }
                     if (next == (byte)'*') {
@@ -112,9 +112,13 @@ internal ref struct Utf8JsonRepairStateMachine
                         else {
                             index = _input.Length; // Unterminated block comment at end of input
                         }
+                        _skippedWhitespace = true;
                         continue;
                     }
                 }
+
+                bool separatedByWhitespace = _skippedWhitespace;
+                _skippedWhitespace = false;
 
                 if (b is (byte)'"' or (byte)'\'') {
                     SeparateFromPreviousValue(expectedValue);
@@ -590,11 +594,11 @@ internal ref struct Utf8JsonRepairStateMachine
         return len;
     }
 
-    // ',' '[' ']' '/' '{' '}' newline '+' and quotes end an unquoted value. ':' does not:
-    // colons belong inside values ("hello: world", URLs, dates) and only terminate keys.
+    // ',' '[' ']' '{' '}' CR LF and quotes end an unquoted value. '/' and '+' continue one
+    // (paths, C++). ':' does not end one either: colons belong inside values and only terminate keys.
     private static bool IsUnquotedValueStop(byte b)
     {
-        return b is (byte)',' or (byte)'[' or (byte)']' or (byte)'/' or (byte)'{' or (byte)'}' or (byte)'\n' or (byte)'+' or (byte)'"' or (byte)'\'';
+        return b is (byte)',' or (byte)'[' or (byte)']' or (byte)'{' or (byte)'}' or (byte)'\n' or (byte)'\r' or (byte)'"' or (byte)'\'';
     }
 
     private static bool IsUnquotedValueStart(ReadOnlySpan<byte> input, int index)
@@ -619,21 +623,37 @@ internal ref struct Utf8JsonRepairStateMachine
         if (IsNbspAt(input, index) || IsCurlyQuoteAt(input, index)) {
             return false;
         }
+        // // and /* end the number. A single '/' continues it ("1/2" is text, not a comment).
+        if (b == (byte)'/' && index + 1 < input.Length && input[index + 1] is (byte)'/' or (byte)'*') {
+            return false;
+        }
         return !IsUnquotedValueStop(b);
     }
 
     private static int ScanUnquotedValueLength(ReadOnlySpan<byte> input, int start)
     {
         int i = start;
-        while (i < input.Length && !IsUnquotedValueStop(input[i]) && !IsCurlyQuoteAt(input, i)) {
-            i++;
-        }
-
-        // '/' ends a value, except in "https://..." where it would otherwise be read as a comment.
-        if (i < input.Length && input[i] == (byte)'/' && IsUrlSchemeAt(input, start, i)) {
-            while (i < input.Length && IsUrlChar(input[i])) {
-                i++;
+        bool inUrl = false;
+        while (i < input.Length) {
+            if (IsUnquotedValueStop(input[i]) || IsCurlyQuoteAt(input, i)) {
+                break;
             }
+
+            // // and /* start a comment only at a token boundary. Inside a URL, // stays in the value.
+            if (!inUrl && input[i] == (byte)'/' && i + 1 < input.Length && input[i + 1] is (byte)'/' or (byte)'*') {
+                if (input[i + 1] == (byte)'/' && IsUrlSchemeAt(input, start, i)) {
+                    inUrl = true;
+                    i += 2;
+                    continue;
+                }
+                break;
+            }
+
+            if (inUrl && !IsUrlChar(input[i])) {
+                break;
+            }
+
+            i++;
         }
 
         while (i > start && input[i - 1] is (byte)' ' or (byte)'\t' or (byte)'\r' or (byte)'\n') {

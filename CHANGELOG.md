@@ -39,6 +39,13 @@ changes, each patch is bug fixes only. Pin an exact minor in production.
 
 ### Changed
 
+- Unquoted values inside an object or array now keep `/` and `+`. `{file: src/app.cs}`
+  becomes `{"file":"src/app.cs"}`, `{path: a/b}` becomes `{"path":"a/b"}`, and
+  `{lang: C++}` becomes `{"lang":"C++"}`. `//` and `/*` still start a comment at a
+  token boundary, including after a number, and a comment is itself a boundary so
+  `n/*x*/ull` is not repaired to `null`. A carriage return ends an unquoted value
+  the same way a line feed does. Non-ASCII digits such as `١` are text, not JSON
+  numbers, on both engines. Corpus parity stays **215/427**.
 - Inputs that used to throw now repair when the unquoted text is a value inside an
   object or array. `{a: hello}` becomes `{"a":"hello"}` and `{a: TrueStuff}` becomes
   `{"a":"TrueStuff"}`. The same text at the root, such as `I cannot help with that.`,

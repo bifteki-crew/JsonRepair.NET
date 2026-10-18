@@ -44,6 +44,19 @@ public class UnquotedValueTests
     [InlineData("{url:https://example.com/a//b,id:1}", "{\"url\":\"https://example.com/a//b\",\"id\":1}")]
     [InlineData("{url:https://example.com/a%20b}", "{\"url\":\"https://example.com/a%20b\"}")]
     [InlineData("{url:https://example.com/search?q=a%20b&x=1}", "{\"url\":\"https://example.com/search?q=a%20b&x=1\"}")]
+    [InlineData("{url:https://example.com/a%2Fb}", "{\"url\":\"https://example.com/a%2Fb\"}")]
+    [InlineData("{url:https://example.com/a%2F%2Fb,id:1}", "{\"url\":\"https://example.com/a%2F%2Fb\",\"id\":1}")]
+    [InlineData("{url:https://example.com/100%}", "{\"url\":\"https://example.com/100%\"}")]
+    [InlineData("{url:https://example.com/a%2,id:1}", "{\"url\":\"https://example.com/a%2\",\"id\":1}")]
+    [InlineData("{file: src/app.cs}", "{\"file\":\"src/app.cs\"}")]
+    [InlineData("{path: a/b}", "{\"path\":\"a/b\"}")]
+    [InlineData("{file: src/a%20b.cs}", "{\"file\":\"src/a%20b.cs\"}")]
+    [InlineData("{lang: C++}", "{\"lang\":\"C++\"}")]
+    [InlineData("[1/2]", "[\"1/2\"]")]
+    [InlineData("{\"a\":2/*foo*/,/*foo*/}", "{\"a\":2}")]
+    [InlineData("[\u0661]", "[\"\u0661\"]")]
+    [InlineData("[1\u0661]", "[\"1\u0661\"]")]
+    [InlineData("{\u0661: 1}", "{\"\u0661\":1}")]
     [InlineData("{a: null@example.com}", "{\"a\":\"null@example.com\"}")]
     [InlineData("[true\u00A9]", "[\"true\u00A9\"]")]
     [InlineData("{a: b c: d}", "{\"a\":\"b c: d\"}")]
@@ -85,9 +98,10 @@ public class UnquotedValueTests
     [InlineData("src/app.cs")]
     [InlineData("a/b")]
     [InlineData("C++")]
-    [InlineData("{file: src/app.cs}")]
-    [InlineData("{path: a/b}")]
-    [InlineData("{lang: C++}")]
+    [InlineData("n /*x*/ull")]
+    [InlineData("n/*x*/ull")]
+    [InlineData("tr /*x*/ue")]
+    [InlineData("tr/*x*/ue")]
     [InlineData("{a: \u201Chi\u201D}")]
     [InlineData("{a: \u2018hi\u2019}")]
     [InlineData("{a: hello\u201Cworld}")]
@@ -109,12 +123,40 @@ public class UnquotedValueTests
         tryWriter.WrittenCount.Should().Be(0);
     }
 
-    [Fact]
-    public void BothEngines_ShouldNotFuseValuesAcrossALineComment()
+    [Theory]
+    [InlineData("[hello//comment\nworld]")]
+    [InlineData("[hello//comment\r\nworld]")]
+    [InlineData("[hello//comment\rworld]")]
+    [InlineData("[hello\nworld]")]
+    [InlineData("[hello\rworld]")]
+    [InlineData("[hello\r\nworld]")]
+    public void BothEngines_ShouldSplitUnquotedValuesOnLfCrAndLineComments(string input)
     {
-        const string input = "[hello//comment\nworld]";
         const string expected = "[\"hello\",\"world\"]";
 
+        JsonSemanticEquality.Equals(expected, JsonRepairEngine.Repair(input), out string stringReason)
+            .Should().BeTrue(because: stringReason);
+        JsonSemanticEquality.Equals(expected, RepairUtf8(input), out string utf8Reason)
+            .Should().BeTrue(because: utf8Reason);
+    }
+
+    [Fact]
+    public void BothEngines_ShouldSplitPropertiesOnABareCarriageReturn()
+    {
+        const string input = "{a: hello\rb: world}";
+        const string expected = "{\"a\":\"hello\",\"b\":\"world\"}";
+
+        JsonSemanticEquality.Equals(expected, JsonRepairEngine.Repair(input), out string stringReason)
+            .Should().BeTrue(because: stringReason);
+        JsonSemanticEquality.Equals(expected, RepairUtf8(input), out string utf8Reason)
+            .Should().BeTrue(because: utf8Reason);
+    }
+
+    [Theory]
+    [InlineData("[n /*x*/ull]", "[\"n\",\"ull\"]")]
+    [InlineData("[n/*x*/ull]", "[\"n\",\"ull\"]")]
+    public void BothEngines_ShouldKeepACommentAsATokenBoundary(string input, string expected)
+    {
         JsonSemanticEquality.Equals(expected, JsonRepairEngine.Repair(input), out string stringReason)
             .Should().BeTrue(because: stringReason);
         JsonSemanticEquality.Equals(expected, RepairUtf8(input), out string utf8Reason)
