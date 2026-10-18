@@ -44,8 +44,15 @@ jobs:
 
       - name: Compare with Tracked Versions in docs/UPSTREAM.md
         run: |
-          TRACKED_JOSDEJONG=$(grep -oP 'josdejong/jsonrepair@\K[v0-9.]+' docs/UPSTREAM.md || echo "unknown")
-          TRACKED_MANGIUCUGNA=$(grep -oP 'mangiucugna/json_repair@\K[v0-9.]+' docs/UPSTREAM.md || echo "unknown")
+          # One pin-table cell per upstream. `grep -oP 'josdejong/jsonrepair@\K[v0-9.]+'`
+          # also matches the change-log rows, so it prints v3.15.0 twice. The comparison
+          # is then "v3.15.0\nv3.15.0" != "v3.15.0" and the job always emits a false
+          # "new josdejong tag" notice. The mangiucugna pin is duplicated the same way.
+          # `head -n 1` keeps a single line even if the table is ever repeated.
+          TRACKED_JOSDEJONG=$(grep -oP '\[josdejong/jsonrepair\]\(https://github.com/josdejong/jsonrepair\) \| `\Kv[0-9.]+' docs/UPSTREAM.md | head -n 1 || true)
+          TRACKED_MANGIUCUGNA=$(grep -oP '\[mangiucugna/json_repair\]\(https://github.com/mangiucugna/json_repair\) \| `\Kv[0-9.]+' docs/UPSTREAM.md | head -n 1 || true)
+          if [ -z "${TRACKED_JOSDEJONG}" ]; then TRACKED_JOSDEJONG="unknown"; fi
+          if [ -z "${TRACKED_MANGIUCUGNA}" ]; then TRACKED_MANGIUCUGNA="unknown"; fi
           JOSDEJONG_LATEST="${{ steps.fetch.outputs.josdejong_latest }}"
           MANGIUCUGNA_LATEST="${{ steps.fetch.outputs.mangiucugna_latest }}"
 

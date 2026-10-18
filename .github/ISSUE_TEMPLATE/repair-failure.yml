@@ -1,3 +1,9 @@
+# `repair-failure` is not a label on bifteki-crew/JsonRepair.NET (checked 2026-10-17).
+# GitHub issue forms ignore unknown labels, so this template currently files unlabeled
+# issues. Create the label before expecting it to stick:
+#   gh label create repair-failure --description "Repair returned the wrong JSON or threw unexpectedly" --color d73a4a
+# Do not swap in `bug`: a report against a scheduled 0.3.0/0.4.0 gap is not automatically a defect.
+# The docs update that recorded this could not create the label (no permission to write labels).
 name: Repair failure
 description: JsonRepair.NET returned the wrong JSON, or threw on input you expected it to repair.
 title: "[repair] "
