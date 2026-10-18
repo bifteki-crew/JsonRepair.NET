@@ -72,6 +72,33 @@ internal ref struct JsonRepairStateMachine
                     continue;
                 }
 
+                // Strip single-line (//) and multi-line (/* */) comments in the scan, matching the
+                // UTF-8 engine. The newline after // stays in the input so it remains a token boundary.
+                // A later // inside a URL is consumed by the value scan, not by this strip.
+                if (c == '/' && _options.StripComments) {
+                    char next = index + 1 < _input.Length ? _input[index + 1] : '\0';
+                    if (next == '/') {
+                        index += 2;
+                        while (index < _input.Length && _input[index] is not '\n' and not '\r') {
+                            index++;
+                        }
+                        continue;
+                    }
+                    if (next == '*') {
+                        index += 2;
+                        while (index + 1 < _input.Length && !(_input[index] == '*' && _input[index + 1] == '/')) {
+                            index++;
+                        }
+                        if (index + 1 < _input.Length && _input[index] == '*' && _input[index + 1] == '/') {
+                            index += 2;
+                        }
+                        else {
+                            index = _input.Length;
+                        }
+                        continue;
+                    }
+                }
+
                 if (c is '"' or '\'') {
                     if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
                         EnsureCommaIfMissing();
@@ -135,8 +162,10 @@ internal ref struct JsonRepairStateMachine
                     continue;
                 }
 
-                // Object key position: inside '{' and not after ':' — literals there are keys and must be quoted, not converted
+                // Object key position: inside '{' and not after ':' — literals there are keys and must be quoted, not converted.
+                // Unquoted text is quoted only inside an object or array. Root prose stays prose and fails validation.
                 bool inKeyPosition = _structureStack.Count > 0 && _structureStack.Peek() == '{' && !expectedValue;
+                bool quoteAsValue = !inKeyPosition && _structureStack.Count > 0;
 
                 // Check for non-standard literals (None, True, False, undefined, NaN)
                 if (_options.ConvertNonStandardLiterals && !inKeyPosition && TryMatchLiteral(_input, index, out string? repairedLiteral, out int literalLen)) {
@@ -149,29 +178,51 @@ internal ref struct JsonRepairStateMachine
                     continue;
                 }
 
-                // Check for numbers (digits or leading minus)
-                if (char.IsDigit(c) || c == '-') {
+                // true/false/null stay literals. The word boundary keeps "trueble" a string.
+                if (!inKeyPosition && TryMatchStandardLiteral(_input, index, out string? standardLiteral, out int standardLen)) {
                     if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
                         EnsureCommaIfMissing();
                     }
-                    int len = GetNumberLength(_input, index);
-                    ReadOnlySpan<char> numSpan = _input.Slice(index, len);
-                    _sb.Append(numSpan);
+                    _sb.Append(standardLiteral);
+                    index += standardLen;
                     expectedValue = false;
-                    index += len;
                     continue;
                 }
 
-                // Check for unquoted keys or unquoted values
-                if (char.IsLetter(c) || c == '_') {
+                // Check for numbers (digits or leading minus)
+                if (char.IsDigit(c) || c == '-') {
+                    int len = GetNumberLength(_input, index);
+                    // A digit run glued to more value text (a date, a UUID) is an unquoted string.
+                    // A pure number token, even an invalid one such as "2." or "0789", is left as a
+                    // number: repairing those is number normalization, a separate repair.
+                    if (len > 0 && !(quoteAsValue && ContinuesUnquotedValue(_input, index + len))) {
+                        if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
+                            EnsureCommaIfMissing();
+                        }
+                        ReadOnlySpan<char> numSpan = _input.Slice(index, len);
+                        if (inKeyPosition && _options.QuoteUnquotedKeys) {
+                            _sb.Append('"');
+                            _sb.Append(numSpan);
+                            _sb.Append('"');
+                        }
+                        else {
+                            _sb.Append(numSpan);
+                        }
+                        expectedValue = false;
+                        index += len;
+                        continue;
+                    }
+                }
+
+                // Unquoted object keys stay identifiers (letters, digits, '_', '-', '$').
+                if (inKeyPosition && (char.IsLetter(c) || c is '_' or '$')) {
                     if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
                         EnsureCommaIfMissing();
                     }
                     int len = GetIdentifierLength(_input, index);
                     ReadOnlySpan<char> identifier = _input.Slice(index, len);
 
-                    // If inside an object and expecting a key (not after ':')
-                    if (inKeyPosition && _options.QuoteUnquotedKeys) {
+                    if (_options.QuoteUnquotedKeys) {
                         _sb.Append('"');
                         _sb.Append(identifier);
                         _sb.Append('"');
@@ -182,6 +233,20 @@ internal ref struct JsonRepairStateMachine
 
                     index += len;
                     continue;
+                }
+
+                // Unquoted string values inside an object or array: {a: hello world}, [a, b], https://...
+                if (quoteAsValue && (IsUnquotedValueStart(c) || char.IsDigit(c) || c == '-')) {
+                    int len = ScanUnquotedValueLength(_input, index);
+                    if (len > 0) {
+                        if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
+                            EnsureCommaIfMissing();
+                        }
+                        AppendQuoted(_input.Slice(index, len));
+                        expectedValue = false;
+                        index += len;
+                        continue;
+                    }
                 }
 
                 _sb.Append(c);
@@ -216,6 +281,7 @@ internal ref struct JsonRepairStateMachine
     /// </summary>
     private static int FindFirstJsonToken(ReadOnlySpan<char> span)
     {
+        bool leadingUnquoted = false;
         for (int i = 0; i < span.Length; i++) {
             char c = span[i];
 
@@ -260,22 +326,29 @@ internal ref struct JsonRepairStateMachine
                 return i;
             }
 
-            // Number start: only when not glued to a prose word (e.g. the "123" in "callback_123")
-            if (c is (>= '0' and <= '9') or '-') {
-                if (i == 0 || !IsIdentifierChar(span[i - 1])) {
-                    return i;
-                }
-            }
-
-            // Literal candidates: only a full literal with word boundary counts; otherwise skip the prose word
+            // Literal candidates: only a full literal with word boundary counts; otherwise skip the prose word.
+            // A literal after other unquoted text ("foo true") belongs to that text, not a new document.
             if (c is 't' or 'f' or 'n' or 'T' or 'F' or 'N' or 'u') {
-                if (TryMatchLiteral(span, i, out _, out _) || StartsWithStandardLiteral(span, i)) {
+                if (!leadingUnquoted && (TryMatchLiteral(span, i, out _, out _) || StartsWithStandardLiteral(span, i))) {
                     return i;
                 }
                 while (i < span.Length && IsIdentifierChar(span[i])) {
                     i++;
                 }
                 i--;
+                leadingUnquoted = true;
+            }
+            else if (IsUnquotedValueStart(c)) {
+                leadingUnquoted = true;
+            }
+
+            // Number start: only when not glued to a prose word (e.g. the "123" in "callback_123").
+            // A number inside leading unquoted text ("foo 2 bar") is part of that string; a later '{' or '['
+            // still wins above, so prose wrapped around an object is unchanged.
+            if (!leadingUnquoted && c is (>= '0' and <= '9') or '-') {
+                if (i == 0 || !IsIdentifierChar(span[i - 1])) {
+                    return i;
+                }
             }
         }
         return 0;
@@ -373,16 +446,48 @@ internal ref struct JsonRepairStateMachine
         return false;
     }
 
-    // Requires a word boundary after the literal so longer identifiers like "TrueStuff" are not corrupted
+    private static bool TryMatchStandardLiteral(ReadOnlySpan<char> span, int index, out string? replacement, out int length)
+    {
+        replacement = null;
+        length = 0;
+        ReadOnlySpan<char> slice = span[index..];
+
+        if (MatchLiteralWord(slice, "true")) {
+            replacement = "true";
+            length = 4;
+            return true;
+        }
+        if (MatchLiteralWord(slice, "false")) {
+            replacement = "false";
+            length = 5;
+            return true;
+        }
+        if (MatchLiteralWord(slice, "null")) {
+            replacement = "null";
+            length = 4;
+            return true;
+        }
+
+        return false;
+    }
+
+    // A literal ends at whitespace or a value stop. "trueble" and "null@example.com" are one token;
+    // "@" and "©" are not boundaries, so the word is not taken as the literal and then split.
     private static bool MatchLiteralWord(ReadOnlySpan<char> slice, string word)
     {
         return slice.StartsWith(word, StringComparison.Ordinal)
-            && (slice.Length == word.Length || !IsIdentifierChar(slice[word.Length]));
+            && (slice.Length == word.Length || IsValueTokenBoundary(slice[word.Length]));
+    }
+
+    private static bool IsValueTokenBoundary(char c)
+    {
+        // Same set the UTF-8 engine treats as a boundary: ASCII whitespace, NBSP, and value stops.
+        return c is ' ' or '\t' or '\n' or '\r' or '\u00A0' || IsUnquotedValueStop(c);
     }
 
     private static bool IsIdentifierChar(char c)
     {
-        return char.IsLetterOrDigit(c) || c is '_' or '-';
+        return char.IsLetterOrDigit(c) || c is '_' or '-' or '$';
     }
 
     private static int GetNumberLength(ReadOnlySpan<char> span, int start)
@@ -405,7 +510,7 @@ internal ref struct JsonRepairStateMachine
         int len = 0;
         while (start + len < span.Length) {
             char ch = span[start + len];
-            if (char.IsLetterOrDigit(ch) || ch == '_' || ch == '-') {
+            if (char.IsLetterOrDigit(ch) || ch is '_' or '-' or '$') {
                 len++;
             }
             else {
@@ -413,6 +518,102 @@ internal ref struct JsonRepairStateMachine
             }
         }
         return len;
+    }
+
+    // ',' '[' ']' '/' '{' '}' newline '+' quotes and curly quotes end an unquoted value. ':' does not:
+    // colons belong inside values ("hello: world", URLs, dates) and only terminate keys.
+    // Curly quotes (U+201C/U+201D/U+2018/U+2019) end a value now; converting them is a later repair.
+    private static bool IsUnquotedValueStop(char c)
+    {
+        return c is ',' or '[' or ']' or '/' or '{' or '}' or '\n' or '+' or '"' or '\''
+            or '\u201C' or '\u201D' or '\u2018' or '\u2019';
+    }
+
+    private static bool IsUnquotedValueStart(char c)
+    {
+        if (c is '\u201C' or '\u201D' or '\u2018' or '\u2019') {
+            return false;
+        }
+        return c is '_' or '$' or (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or >= (char)128;
+    }
+
+    private static bool ContinuesUnquotedValue(ReadOnlySpan<char> input, int index)
+    {
+        if ((uint)index >= (uint)input.Length) {
+            return false;
+        }
+        char c = input[index];
+        // U+00A0 is whitespace here, matching the main loop, so [1\u00A0] stays a number.
+        if (c is ' ' or '\t' or '\n' or '\r' or '\u00A0') {
+            return false;
+        }
+        return !IsUnquotedValueStop(c);
+    }
+
+    private static int ScanUnquotedValueLength(ReadOnlySpan<char> input, int start)
+    {
+        int i = start;
+        while (i < input.Length && !IsUnquotedValueStop(input[i])) {
+            i++;
+        }
+
+        // '/' ends a value, except in "https://..." where it would otherwise be read as a comment.
+        if (i < input.Length && input[i] == '/' && IsUrlSchemeAt(input, start, i)) {
+            while (i < input.Length && IsUrlChar(input[i])) {
+                i++;
+            }
+        }
+
+        while (i > start && input[i - 1] is ' ' or '\t' or '\r' or '\n') {
+            i--;
+        }
+
+        return i - start;
+    }
+
+    private static bool IsUrlSchemeAt(ReadOnlySpan<char> text, int valueStart, int slashIndex)
+    {
+        if (slashIndex <= valueStart || text[slashIndex - 1] != ':') {
+            return false;
+        }
+        if ((uint)slashIndex + 1 >= (uint)text.Length || text[slashIndex + 1] != '/') {
+            return false;
+        }
+
+        ReadOnlySpan<char> scheme = text.Slice(valueStart, slashIndex - 1 - valueStart);
+        return UrlSchemes.IsKnown(scheme);
+    }
+
+    private static bool IsUrlChar(char c)
+    {
+        return c is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9')
+            or '-' or '.' or '_' or '~' or ':' or '/' or '?' or '#' or '@' or '!'
+            or '$' or '&' or '\'' or '(' or ')' or '*' or '+' or ';' or '=' or '%';
+    }
+
+    private void AppendQuoted(ReadOnlySpan<char> value)
+    {
+        _sb.Append('"');
+        foreach (char c in value) {
+            switch (c) {
+                case '"': _sb.Append("\\\""); break;
+                case '\\': _sb.Append("\\\\"); break;
+                case '\b': _sb.Append("\\b"); break;
+                case '\f': _sb.Append("\\f"); break;
+                case '\n': _sb.Append("\\n"); break;
+                case '\r': _sb.Append("\\r"); break;
+                case '\t': _sb.Append("\\t"); break;
+                default:
+                    if (c < 32) {
+                        _sb.Append($"\\u{(int)c:x4}");
+                    }
+                    else {
+                        _sb.Append(c);
+                    }
+                    break;
+            }
+        }
+        _sb.Append('"');
     }
 
     private ref struct CharStack

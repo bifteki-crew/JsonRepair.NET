@@ -15,8 +15,9 @@ public class EngineAgreementTests
 {
     /// <summary>
     /// Inputs where dropped whitespace used to fuse two tokens into a value that was never in the input:
-    /// the UTF-8 engine turned <c>"8 67"</c> into <c>867</c> and <c>"n ull"</c> into <c>null</c>. Both
-    /// engines must reject these.
+    /// the UTF-8 engine turned <c>"8 67"</c> into <c>867</c>. A newline ends an unquoted value, so
+    /// <c>fal\nse</c> is two values and is not wrapped as NDJSON. Both engines must reject these.
+    /// Spaced text such as <c>n ull</c> is quoted only inside an object or array; at the root it throws.
     /// </summary>
     public static TheoryData<string> FusionCandidates => new()
     {
@@ -24,9 +25,7 @@ public class EngineAgreementTests
         "-2 7.241",       // across a negative sign
         "-8\n93",         // across a newline
         "1 89.402",       // integer then decimal
-        "n ull",          // a literal split by a space
-        "fal\nse",        // a literal split by a newline
-        "{\"a\": n ull}", // and the same in value position inside an object
+        "fal\nse",        // a literal split by a newline (newline ends an unquoted value; not NDJSON)
     };
 
     /// <summary>
@@ -49,13 +48,30 @@ public class EngineAgreementTests
     }
 
     /// <summary>
+    /// A space inside an unquoted value is part of that value when that value is inside a container.
+    /// Quoting it is the repair; folding the letters together into <c>null</c> is the fusion this guard forbids.
+    /// The same text at the root is prose and is rejected.
+    /// </summary>
+    [Theory]
+    [InlineData("{\"a\": n ull}", "{\"a\":\"n ull\"}")]
+    public void BothEngines_ShouldQuoteSpacedUnquotedText(string input, string expected)
+    {
+        JsonRepairEngine.Repair(input).Should().Be(expected);
+
+        var writer = new ArrayBufferWriter<byte>();
+        JsonRepairEngine.Repair(Encoding.UTF8.GetBytes(input).AsSpan(), writer);
+        Encoding.UTF8.GetString(writer.WrittenSpan).Should().Be(expected);
+    }
+
+    /// <summary>
     /// One of two remaining divergences. After a root-level primitive the UTF-8 engine drops a trailing
     /// comma, which is what josdejong does (<c>"536,"</c> repairs to <c>536</c>); the string engine
     /// rejects the input instead. So this is the string engine lagging upstream, not the UTF-8 engine
     /// overreaching, and it closes when root-level trailing commas land in Tier 3.
     /// <para>
-    /// The other runs the opposite way: the string engine repairs non-ASCII whitespace (NBSP, U+3000)
-    /// that the UTF-8 engine rejects, covering 6 corpus cases. Both are recorded in docs/UPSTREAM.md.
+    /// The other runs the opposite way: the string engine repairs non-ASCII whitespace (U+3000 and
+    /// similar) that the UTF-8 engine rejects, covering 5 corpus cases. NBSP is whitespace on both.
+    /// Both are recorded in docs/UPSTREAM.md.
     /// </para>
     /// </summary>
     [Theory]

@@ -10,6 +10,20 @@ changes, each patch is bug fixes only. Pin an exact minor in production.
 
 ## [Unreleased]
 
+### Added
+
+- **Unquoted string values** are repaired on both the string and UTF-8 engines when
+  the value is inside an object or array. `{a: hello}` becomes `{"a":"hello"}`,
+  `{greeting: hello world}` becomes `{"greeting":"hello world"}`, and
+  `{a: TrueStuff}` becomes `{"a":"TrueStuff"}`. Keys are still quoted as identifiers.
+  `$` is an identifier character in keys, so `{$ref: 1}` becomes `{"$ref":1}` and
+  `{foo$: 1}` becomes `{"foo$":1}`. `true`, `false`, `null`, and the existing
+  Python/JS literals (`None`, `True`, `False`, `undefined`, `NaN`) stay literals
+  when a real token boundary follows them (`null@example.com` is a string, not
+  `null`). Whitespace-split numbers such as `8 67` still throw. Root prose such as
+  `I cannot help with that.` is not quoted and still throws. Measured josdejong
+  corpus parity on the string engine is **215/427** (was 191/427).
+
 ### Security
 
 - Removed the `Microsoft.SourceLink.GitHub` package reference, which pulled
@@ -25,6 +39,11 @@ changes, each patch is bug fixes only. Pin an exact minor in production.
 
 ### Changed
 
+- Inputs that used to throw now repair when the unquoted text is a value inside an
+  object or array. `{a: hello}` becomes `{"a":"hello"}` and `{a: TrueStuff}` becomes
+  `{"a":"TrueStuff"}`. The same text at the root, such as `I cannot help with that.`,
+  still throws. `$` in an object key is kept as part of the key (`{$ref: 1}`,
+  `{foo$: 1}`).
 - **Replaced FluentAssertions with [AwesomeAssertions](https://github.com/AwesomeAssertions/AwesomeAssertions)
   9.6.0 (Apache-2.0).** FluentAssertions changed licence at 8.0 to the Xceed Community License,
   which permits non-commercial use only and requires a paid commercial licence otherwise. An

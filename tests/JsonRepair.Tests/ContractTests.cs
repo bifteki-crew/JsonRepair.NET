@@ -14,7 +14,7 @@ namespace JsonRepair.Tests;
 public class ContractTests
 {
     [Theory]
-    [InlineData("{a: hello}")] // unquoted string value (Tier 3)
+    [InlineData("8 67")] // two root numbers must not be fused or quoted together
     [InlineData("[\"y\"\\, \"z\"]")] // stray backslash after string
     [InlineData("{\"a\": 1-2}")] // invalid number pass-through
     [InlineData("}")] // lone closer
@@ -27,7 +27,7 @@ public class ContractTests
     }
 
     [Theory]
-    [InlineData("{a: hello}")]
+    [InlineData("8 67")]
     [InlineData("[\"y\"\\, \"z\"]")]
     public void Repair_Utf8_ShouldThrowJsonRepairException_AndWriteNothing_WhenUnrepairable(string inputStr)
     {
@@ -51,7 +51,7 @@ public class ContractTests
     }
 
     [Theory]
-    [InlineData("{a: hello}")]
+    [InlineData("8 67")]
     [InlineData("[\"y\"\\, \"z\"]")]
     public void TryRepair_ShouldReturnFalse_WhenUnrepairable(string input)
     {
@@ -64,7 +64,7 @@ public class ContractTests
     [Fact]
     public void TryRepair_Utf8_ShouldReturnFalse_AndWriteNothing_WhenUnrepairable()
     {
-        byte[] input = Encoding.UTF8.GetBytes("{a: hello}");
+        byte[] input = Encoding.UTF8.GetBytes("8 67");
         var writer = new ArrayBufferWriter<byte>();
 
         bool success = JsonRepairEngine.TryRepair(input.AsSpan(), writer);
@@ -88,7 +88,7 @@ public class ContractTests
     [Fact]
     public void TryParse_ShouldReturnFalse_WhenUnrepairable()
     {
-        bool success = JsonRepairEngine.TryParse("{a: hello}", out var doc);
+        bool success = JsonRepairEngine.TryParse("8 67", out var doc);
 
         success.Should().BeFalse();
         doc.Should().BeNull();
@@ -100,12 +100,12 @@ public class ContractTests
         // A markdown fence and single quotes shift every offset between input and output, so any
         // position System.Text.Json reports describes the repaired output rather than this input.
         // Surfacing it under a message about "the input" would point the caller at the wrong place.
-        string malformed = "```json\n{'name': 'x', 'v': hello}\n```";
+        string malformed = "```json\n{'name': 'x', 'v': 1-2}\n```";
 
         Action act = () => JsonRepairEngine.Repair(malformed);
 
         var message = act.Should().Throw<JsonRepairException>().Which.Message;
-        message.Should().Contain("is an invalid start of a value", because: "the reason is the useful part");
+        message.Should().Contain("'-' is an invalid end of a number", because: "the reason is the useful part");
         message.Should().NotContain("BytePositionInLine", because: "that offset is into the repaired output, not the input");
         message.Should().NotContain("LineNumber", because: "that line number is into the repaired output, not the input");
     }
@@ -115,7 +115,7 @@ public class ContractTests
     {
         // Dropping the offsets from the message must not lose them: the original exception is kept
         // so callers that want the repaired-output offsets can still reach them.
-        Action act = () => JsonRepairEngine.Repair("{a: hello}");
+        Action act = () => JsonRepairEngine.Repair("8 67");
 
         var thrown = act.Should().Throw<JsonRepairException>().Which;
         thrown.InnerException.Should().BeAssignableTo<JsonException>();
@@ -123,8 +123,7 @@ public class ContractTests
     }
 
     [Theory]
-    [InlineData("{a: hello}")]
-    [InlineData("```json\n{'name': 'x', 'v': hello}\n```")]
+    [InlineData("```json\n{'name': 'x', 'v': 1-2}\n```")]
     [InlineData("[\"y\"\\, \"z\"]")]
     public void Repair_BothEngines_ShouldReportTheSameReason(string input)
     {

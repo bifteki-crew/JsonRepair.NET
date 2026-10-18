@@ -129,17 +129,16 @@ public class Utf8StreamingTests
     [Fact]
     public void Repair_Utf8Span_ShouldNotConvertLiteralPrefixInsideLongerWord()
     {
-        // Arrange: unquoted string VALUES are not yet supported (Tier 3 / 0.3.0),
-        // so this input is unrepairable and must throw (valid-or-throw contract, 0.2.0).
+        // Arrange: "TrueStuff" starts with "True" but is one identifier.
+        // It is an unquoted string value, not the literal true followed by "Stuff".
         byte[] malformedUtf8 = Encoding.UTF8.GetBytes("{a: TrueStuff}");
         var writer = new ArrayBufferWriter<byte>();
 
         // Act
-        Action act = () => JsonRepairEngine.Repair(malformedUtf8.AsSpan(), writer);
+        JsonRepairEngine.Repair(malformedUtf8.AsSpan(), writer);
 
         // Assert
-        act.Should().Throw<JsonRepairException>();
-        writer.WrittenCount.Should().Be(0, because: "nothing may be written when repair fails");
+        Encoding.UTF8.GetString(writer.WrittenSpan).Should().Be("{\"a\":\"TrueStuff\"}");
     }
 
     [Theory]
