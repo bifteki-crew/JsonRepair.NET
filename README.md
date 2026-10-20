@@ -178,7 +178,7 @@ The largest gaps, by ported corpus cases:
 
 | Not yet repaired | Cases | Planned |
 | :--- | ---: | :--- |
-| Unquoted string *values* — root prose, missing end quotes, escapes | 49 | 0.3.0 |
+| Unquoted string *values* — root prose, missing end quotes, escapes. Paths and `C++` inside a container repair | 49 | 0.3.0 |
 | Number edge cases — `2.`, `-.5`, `001`, `2e` | 32 | 0.3.0 |
 | Unescaped-quote heuristics — `{'it's'}` | 17 | 0.3.0 |
 | Ellipsis — `[1, 2, ...]` | 18 | 0.3.0 |
@@ -186,7 +186,6 @@ The largest gaps, by ported corpus cases:
 | Smart/typographic quotes — `“…”` `‘…’` | 14 | 0.3.0 |
 | Missing colons — `{a 1}` | 10 | 0.3.0 |
 | Special unicode whitespace — U+2000, U+3000 (NBSP is whitespace) | 8 | 0.3.0 |
-| `/` and `+` end a value — `src/app.cs`, `a/b`, `C++` throw | — | by design |
 | `{a: b c: d}` (no comma, one line) is one string `{"a":"b c: d"}` | — | by design |
 | Leading commas — `[,1]` | 8 | 0.3.0 |
 | NDJSON / multiple root values | 7 | 0.4.0 |

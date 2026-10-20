@@ -88,10 +88,9 @@ internal ref struct Utf8JsonRepairStateMachine
                     continue;
                 }
 
-                bool separatedByWhitespace = _skippedWhitespace;
-                _skippedWhitespace = false;
-
-                // Strip single-line (//) and multi-line (/* */) comments
+                // Strip single-line (//) and multi-line (/* */) comments. Do this before clearing the
+                // whitespace flag: a comment is itself a boundary, and whitespace before it must
+                // still separate the tokens on either side ("n /*x*/ull" must not become null).
                 if (b == (byte)'/' && _options.StripComments) {
                     byte next = index + 1 < _input.Length ? _input[index + 1] : (byte)0;
                     if (next == (byte)'/') {
@@ -99,6 +98,7 @@ internal ref struct Utf8JsonRepairStateMachine
                         while (index < _input.Length && _input[index] is not (byte)'\n' and not (byte)'\r') {
                             index++;
                         }
+                        _skippedWhitespace = true;
                         continue;
                     }
                     if (next == (byte)'*') {
@@ -112,9 +112,13 @@ internal ref struct Utf8JsonRepairStateMachine
                         else {
                             index = _input.Length; // Unterminated block comment at end of input
                         }
+                        _skippedWhitespace = true;
                         continue;
                     }
                 }
+
+                bool separatedByWhitespace = _skippedWhitespace;
+                _skippedWhitespace = false;
 
                 if (b is (byte)'"' or (byte)'\'') {
                     SeparateFromPreviousValue(expectedValue);
@@ -206,8 +210,28 @@ internal ref struct Utf8JsonRepairStateMachine
                     continue;
                 }
 
-                // Check for numbers
-                if (b is >= (byte)'0' and <= (byte)'9' or (byte)'-') {
+                // A key may mix ASCII digits with Nd digits ({1١:1}). Values stay ASCII-only numbers.
+                if (inKeyPosition && (b is >= (byte)'0' and <= (byte)'9' or (byte)'-')) {
+                    int keyLen = GetNumericKeyLength(_input, index);
+                    if (keyLen > 0) {
+                        SeparateFromPreviousValue(expectedValue);
+                        FlushPendingComma();
+                        ReadOnlySpan<byte> keySpan = _input.Slice(index, keyLen);
+                        if (_options.QuoteUnquotedKeys) {
+                            WriteByte((byte)'"');
+                            WriteBytes(keySpan);
+                            WriteByte((byte)'"');
+                        }
+                        else {
+                            WriteBytes(keySpan);
+                        }
+                        index += keyLen;
+                        continue;
+                    }
+                }
+
+                // Check for numbers. JSON number values are ASCII digits only.
+                if (!inKeyPosition && (b is >= (byte)'0' and <= (byte)'9' or (byte)'-')) {
                     int len = GetNumberLength(_input, index);
                     // A digit run glued to more value text (a date, a UUID) is an unquoted string.
                     // A pure number token, even an invalid one such as "2." or "0789", is left as a
@@ -215,15 +239,13 @@ internal ref struct Utf8JsonRepairStateMachine
                     if (len > 0 && !(quoteAsValue && ContinuesUnquotedValue(_input, index + len))) {
                         SeparateFromPreviousValue(expectedValue);
                         FlushPendingComma();
-                        ReadOnlySpan<byte> numSpan = _input.Slice(index, len);
-                        if (inKeyPosition && _options.QuoteUnquotedKeys) {
-                            WriteByte((byte)'"');
-                            WriteBytes(numSpan);
-                            WriteByte((byte)'"');
+                        // A comment between numbers must not glue them ("1/*x*/2" is not 12).
+                        // A comma flushed above already separates them; the space covers the root
+                        // when missing commas are not inserted and the comma was never written.
+                        if (separatedByWhitespace && IsNumberFusionChar(_lastWrittenByte)) {
+                            WriteByte((byte)' ');
                         }
-                        else {
-                            WriteBytes(numSpan);
-                        }
+                        WriteBytes(_input.Slice(index, len));
                         expectedValue = false;
                         index += len;
                         continue;
@@ -552,6 +574,10 @@ internal ref struct Utf8JsonRepairStateMachine
         if (IsNbspAt(slice, index) || IsCurlyQuoteAt(slice, index)) {
             return true;
         }
+        // // and /* end a literal. A single '/' does not, so "true/x" stays one unquoted value.
+        if (b == (byte)'/' && index + 1 < slice.Length && slice[index + 1] is (byte)'/' or (byte)'*') {
+            return true;
+        }
         return IsUnquotedValueStop(b);
     }
 
@@ -575,6 +601,44 @@ internal ref struct Utf8JsonRepairStateMachine
         return len;
     }
 
+    // Object keys keep Nd digits that follow an ASCII number ("1١"), which are not JSON number values.
+    private static int GetNumericKeyLength(ReadOnlySpan<byte> span, int start)
+    {
+        int len = 0;
+        while (start + len < span.Length) {
+            byte b = span[start + len];
+            if (b is (>= (byte)'0' and <= (byte)'9') or (byte)'.' or (byte)'-' or (byte)'+' or (byte)'e' or (byte)'E') {
+                len++;
+                continue;
+            }
+            int digitBytes = UnicodeDigitByteLength(span, start + len);
+            if (digitBytes == 0) {
+                break;
+            }
+            len += digitBytes;
+        }
+        return len;
+    }
+
+    private static int UnicodeDigitByteLength(ReadOnlySpan<byte> span, int index)
+    {
+        if ((uint)index >= (uint)span.Length) {
+            return 0;
+        }
+        if (System.Text.Rune.DecodeFromUtf8(span[index..], out System.Text.Rune rune, out int bytes) != System.Buffers.OperationStatus.Done) {
+            return 0;
+        }
+        if (rune.Value > '9' && System.Text.Rune.IsDigit(rune)) {
+            return bytes;
+        }
+        return 0;
+    }
+
+    private static bool IsNumberFusionChar(byte b)
+    {
+        return b is (>= (byte)'0' and <= (byte)'9') or (byte)'.' or (byte)'-' or (byte)'+' or (byte)'e' or (byte)'E';
+    }
+
     private static int GetIdentifierLength(ReadOnlySpan<byte> span, int start)
     {
         int len = 0;
@@ -590,11 +654,11 @@ internal ref struct Utf8JsonRepairStateMachine
         return len;
     }
 
-    // ',' '[' ']' '/' '{' '}' newline '+' and quotes end an unquoted value. ':' does not:
-    // colons belong inside values ("hello: world", URLs, dates) and only terminate keys.
+    // ',' '[' ']' '{' '}' CR LF and quotes end an unquoted value. '/' and '+' continue one
+    // (paths, C++). ':' does not end one either: colons belong inside values and only terminate keys.
     private static bool IsUnquotedValueStop(byte b)
     {
-        return b is (byte)',' or (byte)'[' or (byte)']' or (byte)'/' or (byte)'{' or (byte)'}' or (byte)'\n' or (byte)'+' or (byte)'"' or (byte)'\'';
+        return b is (byte)',' or (byte)'[' or (byte)']' or (byte)'{' or (byte)'}' or (byte)'\n' or (byte)'\r' or (byte)'"' or (byte)'\'';
     }
 
     private static bool IsUnquotedValueStart(ReadOnlySpan<byte> input, int index)
@@ -619,21 +683,39 @@ internal ref struct Utf8JsonRepairStateMachine
         if (IsNbspAt(input, index) || IsCurlyQuoteAt(input, index)) {
             return false;
         }
+        // // and /* end the number. A single '/' continues it ("1/2" is text, not a comment).
+        if (b == (byte)'/' && index + 1 < input.Length && input[index + 1] is (byte)'/' or (byte)'*') {
+            return false;
+        }
         return !IsUnquotedValueStop(b);
     }
 
     private static int ScanUnquotedValueLength(ReadOnlySpan<byte> input, int start)
     {
         int i = start;
-        while (i < input.Length && !IsUnquotedValueStop(input[i]) && !IsCurlyQuoteAt(input, i)) {
-            i++;
-        }
+        bool inUrl = false;
+        while (i < input.Length) {
+            if (!inUrl) {
+                if (IsUnquotedValueStop(input[i]) || IsCurlyQuoteAt(input, i)) {
+                    break;
+                }
 
-        // '/' ends a value, except in "https://..." where it would otherwise be read as a comment.
-        if (i < input.Length && input[i] == (byte)'/' && IsUrlSchemeAt(input, start, i)) {
-            while (i < input.Length && IsUrlChar(input[i])) {
-                i++;
+                // // and /* start a comment only at a token boundary. scheme:// enters the URL.
+                if (input[i] == (byte)'/' && i + 1 < input.Length && input[i + 1] is (byte)'/' or (byte)'*') {
+                    if (input[i + 1] == (byte)'/' && IsUrlSchemeAt(input, start, i)) {
+                        inUrl = true;
+                        i += 2;
+                        continue;
+                    }
+                    break;
+                }
             }
+            else if (!IsUrlChar(input[i])) {
+                // Apostrophes are URL characters, so they must not use the general value stop.
+                break;
+            }
+
+            i++;
         }
 
         while (i > start && input[i - 1] is (byte)' ' or (byte)'\t' or (byte)'\r' or (byte)'\n') {

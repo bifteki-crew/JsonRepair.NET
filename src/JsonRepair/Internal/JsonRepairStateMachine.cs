@@ -26,6 +26,8 @@ internal ref struct JsonRepairStateMachine
             bool inString = false;
             char currentQuote = '\0';
             bool expectedValue = false;
+            // A skipped comment is a token boundary. Keeping this set stops "n/*x*/ull" fusing into null.
+            bool separatorPending = false;
 
             // Skip leading noise until first JSON token ({, [, ", ', number, or literal)
             int start = FindFirstJsonToken(_input);
@@ -73,8 +75,9 @@ internal ref struct JsonRepairStateMachine
                 }
 
                 // Strip single-line (//) and multi-line (/* */) comments in the scan, matching the
-                // UTF-8 engine. The newline after // stays in the input so it remains a token boundary.
-                // A later // inside a URL is consumed by the value scan, not by this strip.
+                // UTF-8 engine. The newline after // stays in the input. A later // inside a URL is
+                // consumed by the value scan, not by this strip. The comment itself is a boundary,
+                // so the next raw token cannot fuse with the previous one.
                 if (c == '/' && _options.StripComments) {
                     char next = index + 1 < _input.Length ? _input[index + 1] : '\0';
                     if (next == '/') {
@@ -82,6 +85,7 @@ internal ref struct JsonRepairStateMachine
                         while (index < _input.Length && _input[index] is not '\n' and not '\r') {
                             index++;
                         }
+                        separatorPending = true;
                         continue;
                     }
                     if (next == '*') {
@@ -95,9 +99,13 @@ internal ref struct JsonRepairStateMachine
                         else {
                             index = _input.Length;
                         }
+                        separatorPending = true;
                         continue;
                     }
                 }
+
+                bool separated = separatorPending;
+                separatorPending = false;
 
                 if (c is '"' or '\'') {
                     if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
@@ -189,8 +197,29 @@ internal ref struct JsonRepairStateMachine
                     continue;
                 }
 
-                // Check for numbers (digits or leading minus)
-                if (char.IsDigit(c) || c == '-') {
+                // A key may mix ASCII digits with Nd digits ({1١:1}). Values stay ASCII-only numbers.
+                if (inKeyPosition && (IsAsciiDigit(c) || c == '-')) {
+                    int keyLen = GetNumericKeyLength(_input, index);
+                    if (keyLen > 0) {
+                        if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
+                            EnsureCommaIfMissing();
+                        }
+                        ReadOnlySpan<char> keySpan = _input.Slice(index, keyLen);
+                        if (_options.QuoteUnquotedKeys) {
+                            _sb.Append('"');
+                            _sb.Append(keySpan);
+                            _sb.Append('"');
+                        }
+                        else {
+                            _sb.Append(keySpan);
+                        }
+                        index += keyLen;
+                        continue;
+                    }
+                }
+
+                // JSON number values are ASCII digits only. U+0661 and other Nd digits are text.
+                if (!inKeyPosition && (IsAsciiDigit(c) || c == '-')) {
                     int len = GetNumberLength(_input, index);
                     // A digit run glued to more value text (a date, a UUID) is an unquoted string.
                     // A pure number token, even an invalid one such as "2." or "0789", is left as a
@@ -199,23 +228,20 @@ internal ref struct JsonRepairStateMachine
                         if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
                             EnsureCommaIfMissing();
                         }
-                        ReadOnlySpan<char> numSpan = _input.Slice(index, len);
-                        if (inKeyPosition && _options.QuoteUnquotedKeys) {
-                            _sb.Append('"');
-                            _sb.Append(numSpan);
-                            _sb.Append('"');
+                        // A comment between root numbers must not glue them ("1/*x*/2" is not 12).
+                        // Inside a container the comma above already separates them.
+                        if (separated && _sb.Length > 0 && IsNumberFusionChar(_sb[^1])) {
+                            _sb.Append(' ');
                         }
-                        else {
-                            _sb.Append(numSpan);
-                        }
+                        _sb.Append(_input.Slice(index, len));
                         expectedValue = false;
                         index += len;
                         continue;
                     }
                 }
 
-                // Unquoted object keys stay identifiers (letters, digits, '_', '-', '$').
-                if (inKeyPosition && (char.IsLetter(c) || c is '_' or '$')) {
+                // Unquoted object keys stay identifiers (letters, ASCII or Nd digits, '_', '-', '$').
+                if (inKeyPosition && (char.IsLetter(c) || IsUnicodeDigit(c) || c is '_' or '$')) {
                     if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
                         EnsureCommaIfMissing();
                     }
@@ -236,7 +262,7 @@ internal ref struct JsonRepairStateMachine
                 }
 
                 // Unquoted string values inside an object or array: {a: hello world}, [a, b], https://...
-                if (quoteAsValue && (IsUnquotedValueStart(c) || char.IsDigit(c) || c == '-')) {
+                if (quoteAsValue && (IsUnquotedValueStart(c) || IsAsciiDigit(c) || c == '-')) {
                     int len = ScanUnquotedValueLength(_input, index);
                     if (len > 0) {
                         if (!expectedValue && _structureStack.Count > 0 && _options.InsertMissingCommas) {
@@ -249,6 +275,9 @@ internal ref struct JsonRepairStateMachine
                     }
                 }
 
+                if (separated && _sb.Length > 0 && IsAsciiLetterOrDigit(_sb[^1]) && IsAsciiLetterOrDigit(c)) {
+                    _sb.Append(' ');
+                }
                 _sb.Append(c);
                 index++;
             }
@@ -476,13 +505,21 @@ internal ref struct JsonRepairStateMachine
     private static bool MatchLiteralWord(ReadOnlySpan<char> slice, string word)
     {
         return slice.StartsWith(word, StringComparison.Ordinal)
-            && (slice.Length == word.Length || IsValueTokenBoundary(slice[word.Length]));
+            && (slice.Length == word.Length || IsValueTokenBoundary(slice, word.Length));
     }
 
-    private static bool IsValueTokenBoundary(char c)
+    private static bool IsValueTokenBoundary(ReadOnlySpan<char> slice, int index)
     {
+        if ((uint)index >= (uint)slice.Length) {
+            return true;
+        }
+        char c = slice[index];
         // Same set the UTF-8 engine treats as a boundary: ASCII whitespace, NBSP, and value stops.
-        return c is ' ' or '\t' or '\n' or '\r' or '\u00A0' || IsUnquotedValueStop(c);
+        // // and /* end a literal. A single '/' does not, so "true/x" stays one unquoted value.
+        if (c is ' ' or '\t' or '\n' or '\r' or '\u00A0' || IsUnquotedValueStop(c)) {
+            return true;
+        }
+        return c == '/' && index + 1 < slice.Length && slice[index + 1] is '/' or '*';
     }
 
     private static bool IsIdentifierChar(char c)
@@ -495,7 +532,7 @@ internal ref struct JsonRepairStateMachine
         int len = 0;
         while (start + len < span.Length) {
             char ch = span[start + len];
-            if (char.IsDigit(ch) || ch is '.' or '-' or '+' or 'e' or 'E') {
+            if (IsAsciiDigit(ch) || ch is '.' or '-' or '+' or 'e' or 'E') {
                 len++;
             }
             else {
@@ -503,6 +540,27 @@ internal ref struct JsonRepairStateMachine
             }
         }
         return len;
+    }
+
+    // Object keys keep Nd digits that follow an ASCII number ("1١"), which are not JSON number values.
+    private static int GetNumericKeyLength(ReadOnlySpan<char> span, int start)
+    {
+        int len = 0;
+        while (start + len < span.Length) {
+            char ch = span[start + len];
+            if (IsAsciiDigit(ch) || IsUnicodeDigit(ch) || ch is '.' or '-' or '+' or 'e' or 'E') {
+                len++;
+            }
+            else {
+                break;
+            }
+        }
+        return len;
+    }
+
+    private static bool IsNumberFusionChar(char c)
+    {
+        return c is (>= '0' and <= '9') or '.' or '-' or '+' or 'e' or 'E';
     }
 
     private static int GetIdentifierLength(ReadOnlySpan<char> span, int start)
@@ -520,13 +578,30 @@ internal ref struct JsonRepairStateMachine
         return len;
     }
 
-    // ',' '[' ']' '/' '{' '}' newline '+' quotes and curly quotes end an unquoted value. ':' does not:
+    // ',' '[' ']' '{' '}' CR LF quotes and curly quotes end an unquoted value.
+    // '/' and '+' continue a value once it has started (paths, C++). ':' does not end one either:
     // colons belong inside values ("hello: world", URLs, dates) and only terminate keys.
-    // Curly quotes (U+201C/U+201D/U+2018/U+2019) end a value now; converting them is a later repair.
+    // Curly quotes (U+201C/U+201D/U+2018/U+2019) end a value; converting them is a later repair.
+    // CR ends a value the same way LF does, so a bare CR cannot glue two values together.
     private static bool IsUnquotedValueStop(char c)
     {
-        return c is ',' or '[' or ']' or '/' or '{' or '}' or '\n' or '+' or '"' or '\''
+        return c is ',' or '[' or ']' or '{' or '}' or '\n' or '\r' or '"' or '\''
             or '\u201C' or '\u201D' or '\u2018' or '\u2019';
+    }
+
+    private static bool IsAsciiDigit(char c)
+    {
+        return c is >= '0' and <= '9';
+    }
+
+    private static bool IsUnicodeDigit(char c)
+    {
+        return char.IsDigit(c) && !IsAsciiDigit(c);
+    }
+
+    private static bool IsAsciiLetterOrDigit(char c)
+    {
+        return c is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9');
     }
 
     private static bool IsUnquotedValueStart(char c)
@@ -547,21 +622,40 @@ internal ref struct JsonRepairStateMachine
         if (c is ' ' or '\t' or '\n' or '\r' or '\u00A0') {
             return false;
         }
+        // // and /* end the number. A single '/' continues it ("1/2" is text, not a comment).
+        if (c == '/' && index + 1 < input.Length && input[index + 1] is '/' or '*') {
+            return false;
+        }
         return !IsUnquotedValueStop(c);
     }
 
     private static int ScanUnquotedValueLength(ReadOnlySpan<char> input, int start)
     {
         int i = start;
-        while (i < input.Length && !IsUnquotedValueStop(input[i])) {
-            i++;
-        }
+        bool inUrl = false;
+        while (i < input.Length) {
+            char c = input[i];
+            if (!inUrl) {
+                if (IsUnquotedValueStop(c)) {
+                    break;
+                }
 
-        // '/' ends a value, except in "https://..." where it would otherwise be read as a comment.
-        if (i < input.Length && input[i] == '/' && IsUrlSchemeAt(input, start, i)) {
-            while (i < input.Length && IsUrlChar(input[i])) {
-                i++;
+                // // and /* start a comment only at a token boundary. scheme:// enters the URL.
+                if (c == '/' && i + 1 < input.Length && input[i + 1] is '/' or '*') {
+                    if (input[i + 1] == '/' && IsUrlSchemeAt(input, start, i)) {
+                        inUrl = true;
+                        i += 2;
+                        continue;
+                    }
+                    break;
+                }
             }
+            else if (!IsUrlChar(c)) {
+                // Apostrophes are URL characters, so they must not use the general value stop.
+                break;
+            }
+
+            i++;
         }
 
         while (i > start && input[i - 1] is ' ' or '\t' or '\r' or '\n') {
