@@ -210,8 +210,28 @@ internal ref struct Utf8JsonRepairStateMachine
                     continue;
                 }
 
-                // Check for numbers
-                if (b is >= (byte)'0' and <= (byte)'9' or (byte)'-') {
+                // A key may mix ASCII digits with Nd digits ({1١:1}). Values stay ASCII-only numbers.
+                if (inKeyPosition && (b is >= (byte)'0' and <= (byte)'9' or (byte)'-')) {
+                    int keyLen = GetNumericKeyLength(_input, index);
+                    if (keyLen > 0) {
+                        SeparateFromPreviousValue(expectedValue);
+                        FlushPendingComma();
+                        ReadOnlySpan<byte> keySpan = _input.Slice(index, keyLen);
+                        if (_options.QuoteUnquotedKeys) {
+                            WriteByte((byte)'"');
+                            WriteBytes(keySpan);
+                            WriteByte((byte)'"');
+                        }
+                        else {
+                            WriteBytes(keySpan);
+                        }
+                        index += keyLen;
+                        continue;
+                    }
+                }
+
+                // Check for numbers. JSON number values are ASCII digits only.
+                if (!inKeyPosition && (b is >= (byte)'0' and <= (byte)'9' or (byte)'-')) {
                     int len = GetNumberLength(_input, index);
                     // A digit run glued to more value text (a date, a UUID) is an unquoted string.
                     // A pure number token, even an invalid one such as "2." or "0789", is left as a
@@ -219,15 +239,13 @@ internal ref struct Utf8JsonRepairStateMachine
                     if (len > 0 && !(quoteAsValue && ContinuesUnquotedValue(_input, index + len))) {
                         SeparateFromPreviousValue(expectedValue);
                         FlushPendingComma();
-                        ReadOnlySpan<byte> numSpan = _input.Slice(index, len);
-                        if (inKeyPosition && _options.QuoteUnquotedKeys) {
-                            WriteByte((byte)'"');
-                            WriteBytes(numSpan);
-                            WriteByte((byte)'"');
+                        // A comment between numbers must not glue them ("1/*x*/2" is not 12).
+                        // A comma flushed above already separates them; the space covers the root
+                        // when missing commas are not inserted and the comma was never written.
+                        if (separatedByWhitespace && IsNumberFusionChar(_lastWrittenByte)) {
+                            WriteByte((byte)' ');
                         }
-                        else {
-                            WriteBytes(numSpan);
-                        }
+                        WriteBytes(_input.Slice(index, len));
                         expectedValue = false;
                         index += len;
                         continue;
@@ -556,6 +574,10 @@ internal ref struct Utf8JsonRepairStateMachine
         if (IsNbspAt(slice, index) || IsCurlyQuoteAt(slice, index)) {
             return true;
         }
+        // // and /* end a literal. A single '/' does not, so "true/x" stays one unquoted value.
+        if (b == (byte)'/' && index + 1 < slice.Length && slice[index + 1] is (byte)'/' or (byte)'*') {
+            return true;
+        }
         return IsUnquotedValueStop(b);
     }
 
@@ -577,6 +599,44 @@ internal ref struct Utf8JsonRepairStateMachine
             }
         }
         return len;
+    }
+
+    // Object keys keep Nd digits that follow an ASCII number ("1١"), which are not JSON number values.
+    private static int GetNumericKeyLength(ReadOnlySpan<byte> span, int start)
+    {
+        int len = 0;
+        while (start + len < span.Length) {
+            byte b = span[start + len];
+            if (b is (>= (byte)'0' and <= (byte)'9') or (byte)'.' or (byte)'-' or (byte)'+' or (byte)'e' or (byte)'E') {
+                len++;
+                continue;
+            }
+            int digitBytes = UnicodeDigitByteLength(span, start + len);
+            if (digitBytes == 0) {
+                break;
+            }
+            len += digitBytes;
+        }
+        return len;
+    }
+
+    private static int UnicodeDigitByteLength(ReadOnlySpan<byte> span, int index)
+    {
+        if ((uint)index >= (uint)span.Length) {
+            return 0;
+        }
+        if (System.Text.Rune.DecodeFromUtf8(span[index..], out System.Text.Rune rune, out int bytes) != System.Buffers.OperationStatus.Done) {
+            return 0;
+        }
+        if (rune.Value > '9' && System.Text.Rune.IsDigit(rune)) {
+            return bytes;
+        }
+        return 0;
+    }
+
+    private static bool IsNumberFusionChar(byte b)
+    {
+        return b is (>= (byte)'0' and <= (byte)'9') or (byte)'.' or (byte)'-' or (byte)'+' or (byte)'e' or (byte)'E';
     }
 
     private static int GetIdentifierLength(ReadOnlySpan<byte> span, int start)
@@ -635,21 +695,23 @@ internal ref struct Utf8JsonRepairStateMachine
         int i = start;
         bool inUrl = false;
         while (i < input.Length) {
-            if (IsUnquotedValueStop(input[i]) || IsCurlyQuoteAt(input, i)) {
-                break;
-            }
-
-            // // and /* start a comment only at a token boundary. Inside a URL, // stays in the value.
-            if (!inUrl && input[i] == (byte)'/' && i + 1 < input.Length && input[i + 1] is (byte)'/' or (byte)'*') {
-                if (input[i + 1] == (byte)'/' && IsUrlSchemeAt(input, start, i)) {
-                    inUrl = true;
-                    i += 2;
-                    continue;
+            if (!inUrl) {
+                if (IsUnquotedValueStop(input[i]) || IsCurlyQuoteAt(input, i)) {
+                    break;
                 }
-                break;
-            }
 
-            if (inUrl && !IsUrlChar(input[i])) {
+                // // and /* start a comment only at a token boundary. scheme:// enters the URL.
+                if (input[i] == (byte)'/' && i + 1 < input.Length && input[i + 1] is (byte)'/' or (byte)'*') {
+                    if (input[i + 1] == (byte)'/' && IsUrlSchemeAt(input, start, i)) {
+                        inUrl = true;
+                        i += 2;
+                        continue;
+                    }
+                    break;
+                }
+            }
+            else if (!IsUrlChar(input[i])) {
+                // Apostrophes are URL characters, so they must not use the general value stop.
                 break;
             }
 

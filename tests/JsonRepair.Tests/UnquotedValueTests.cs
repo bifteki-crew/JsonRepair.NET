@@ -63,6 +63,19 @@ public class UnquotedValueTests
     [InlineData("{$ref: 1}", "{\"$ref\":1}")]
     [InlineData("{foo$: 1}", "{\"foo$\":1}")]
     [InlineData("{2:2}", "{\"2\":2}")]
+    [InlineData("{1\u0661:1}", "{\"1\u0661\":1}")]
+    [InlineData("{\u06611:1}", "{\"\u06611\":1}")]
+    [InlineData("{\u0661a:1}", "{\"\u0661a\":1}")]
+    [InlineData("[true/*x*/]", "[true]")]
+    [InlineData("[false/*x*/]", "[false]")]
+    [InlineData("[null/*x*/]", "[null]")]
+    [InlineData("[None/*x*/]", "[null]")]
+    [InlineData("[1/*x*/2]", "[1,2]")]
+    [InlineData("[true/x]", "[\"true/x\"]")]
+    [InlineData("[None/x]", "[\"None/x\"]")]
+    [InlineData("[https://example.com/O'Reilly]", "[\"https://example.com/O'Reilly\"]")]
+    [InlineData("{url:https://example.com/O'Reilly}", "{\"url\":\"https://example.com/O'Reilly\"}")]
+    [InlineData("{url:https://example.com/O'Reilly,id:1}", "{\"url\":\"https://example.com/O'Reilly\",\"id\":1}")]
     [InlineData("{\"date\":2024-10-18T18:35:22.229Z}", "{\"date\":\"2024-10-18T18:35:22.229Z\"}")]
     public void BothEngines_ShouldQuoteUnquotedValues(string input, string expected)
     {
@@ -176,11 +189,67 @@ public class UnquotedValueTests
     }
 
     [Theory]
+    [InlineData("[true//c\n]", "[true]")]
+    [InlineData("[false//c\n]", "[false]")]
+    [InlineData("[null//c\n]", "[null]")]
+    [InlineData("[None//c\n]", "[null]")]
+    public void BothEngines_ShouldKeepLiteralsWhenALineCommentFollows(string input, string expected)
+    {
+        JsonSemanticEquality.Equals(expected, JsonRepairEngine.Repair(input), out string stringReason)
+            .Should().BeTrue(because: stringReason);
+        JsonSemanticEquality.Equals(expected, RepairUtf8(input), out string utf8Reason)
+            .Should().BeTrue(because: utf8Reason);
+    }
+
+    [Theory]
+    [InlineData("[1//c\n2]")]
+    public void BothEngines_ShouldKeepNumbersSeparateAcrossAComment(string input)
+    {
+        const string expected = "[1,2]";
+
+        JsonSemanticEquality.Equals(expected, JsonRepairEngine.Repair(input), out string stringReason)
+            .Should().BeTrue(because: stringReason);
+        JsonSemanticEquality.Equals(expected, RepairUtf8(input), out string utf8Reason)
+            .Should().BeTrue(because: utf8Reason);
+    }
+
+    [Theory]
     [InlineData("8 67")]
     [InlineData("{\"a\": 8 67}")]
     [InlineData("-2 7.241")]
     public void BothEngines_ShouldStillRejectWhitespaceSplitNumbers(string input)
     {
+        Action viaString = () => JsonRepairEngine.Repair(input);
+        viaString.Should().Throw<JsonRepairException>();
+
+        Action viaUtf8 = () => RepairUtf8(input);
+        viaUtf8.Should().Throw<JsonRepairException>();
+    }
+
+    [Theory]
+    [InlineData("1/*x*/2")]
+    [InlineData("-/*x*/2")]
+    [InlineData("1//c\n2")]
+    [InlineData("1e/*x*/2")]
+    public void BothEngines_ShouldRejectRootNumbersJoinedByAComment(string input)
+    {
+        Action viaString = () => JsonRepairEngine.Repair(input);
+        viaString.Should().Throw<JsonRepairException>();
+        JsonRepairEngine.TryRepair(input, out string? repaired).Should().BeFalse();
+        repaired.Should().BeNull();
+
+        byte[] bytes = Encoding.UTF8.GetBytes(input);
+        var writer = new ArrayBufferWriter<byte>();
+        Action viaUtf8 = () => JsonRepairEngine.Repair(bytes, writer);
+        viaUtf8.Should().Throw<JsonRepairException>();
+        writer.WrittenCount.Should().Be(0);
+    }
+
+    [Fact]
+    public void BothEngines_ShouldStillEndANonUrlValueAtAnApostrophe()
+    {
+        const string input = "{greeting: hello'world}";
+
         Action viaString = () => JsonRepairEngine.Repair(input);
         viaString.Should().Throw<JsonRepairException>();
 
