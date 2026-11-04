@@ -26,6 +26,7 @@ public class EngineAgreementTests
         "-8\n93",         // across a newline
         "1 89.402",       // integer then decimal
         "fal\nse",        // a literal split by a newline (newline ends an unquoted value; not NDJSON)
+        "fal\rse",        // a bare CR is the same boundary as LF
     };
 
     /// <summary>

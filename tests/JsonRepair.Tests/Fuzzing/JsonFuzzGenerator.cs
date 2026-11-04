@@ -12,8 +12,12 @@ internal static class JsonFuzzGenerator
 {
     private static readonly SearchValues<char> Closers = SearchValues.Create("}]");
 
-    /// <summary>Characters spliced in at a random offset to break structure.</summary>
-    private const string InsertableChars = "{}[]\",:'`\\ \n";
+    /// <summary>
+    /// Characters spliced in at a random offset to break structure.
+    /// CR and U+0661 are here so <c>Fuzz_BothEnginesShouldAgree</c> would catch a bare CR
+    /// that fails to end a value, or a Unicode digit that only one engine treats as a number.
+    /// </summary>
+    private const string InsertableChars = "{}[]\",:'`\\ \n\r\u0661";
 
     /// <summary>Atoms spliced into generated strings, biased towards characters that stress the engines.</summary>
     private static readonly string[] StringAtoms = {
