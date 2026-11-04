@@ -54,7 +54,9 @@ changes, each patch is bug fixes only. Pin an exact minor in production.
 - A comment or whitespace before `.` or `+` no longer glues number fragments together, so
   `1/*x*/.2` and `1e/*x*/+2` throw instead of becoming `1.2` and `1e+2`, on both engines
   and with `InsertMissingCommas` on or off. Numeric object keys accept supplementary-plane
-  decimal digits on the string engine as well as the UTF-8 engine (`{1𝟙:1}` is `{"1𝟙":1}`).
+  decimal digits on the string engine as well as the UTF-8 engine (`{1𝟙:1}` is `{"1𝟙":1}`). A key
+  that starts with a non-ASCII digit keeps a numeric shape on both engines (`{١.٢:1}` is
+  `{"١.٢":1}`, `{١e+٢:1}` is `{"١e+٢":1}`) and still reads as an identifier (`{١a:1}`).
 - Inputs that used to throw now repair when the unquoted text is a value inside an
   object or array. `{a: hello}` becomes `{"a":"hello"}` and `{a: TrueStuff}` becomes
   `{"a":"TrueStuff"}`. The same text at the root, such as `I cannot help with that.`,

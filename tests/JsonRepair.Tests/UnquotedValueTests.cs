@@ -66,6 +66,8 @@ public class UnquotedValueTests
     [InlineData("{1\u0661:1}", "{\"1\u0661\":1}")]
     [InlineData("{\u06611:1}", "{\"\u06611\":1}")]
     [InlineData("{\u0661a:1}", "{\"\u0661a\":1}")]
+    [InlineData("{\u0661.\u0662:1}", "{\"\u0661.\u0662\":1}")]
+    [InlineData("{\u0661e+\u0662:1}", "{\"\u0661e+\u0662\":1}")]
     [InlineData("{1\U0001D7D9:1}", "{\"1\U0001D7D9\":1}")]
     [InlineData("{12\U0001D7D9\u0661:1}", "{\"12\U0001D7D9\u0661\":1}")]
     [InlineData("[true/*x*/]", "[true]")]

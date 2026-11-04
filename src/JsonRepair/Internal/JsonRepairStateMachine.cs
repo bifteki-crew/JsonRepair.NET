@@ -246,6 +246,11 @@ internal ref struct JsonRepairStateMachine
                         EnsureCommaIfMissing();
                     }
                     int len = GetIdentifierLength(_input, index);
+                    // An Nd-leading key may be numeric-shaped ("١.٢", "١e+٢") or an identifier ("١a").
+                    // The longer reading wins, so neither shape is cut off at '.', '+' or a letter.
+                    if (IsUnicodeDigit(c)) {
+                        len = Math.Max(len, GetNumericKeyLength(_input, index));
+                    }
                     ReadOnlySpan<char> identifier = _input.Slice(index, len);
 
                     if (_options.QuoteUnquotedKeys) {

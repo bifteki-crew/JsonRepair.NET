@@ -257,6 +257,12 @@ internal ref struct Utf8JsonRepairStateMachine
                     SeparateFromPreviousValue(expectedValue);
                     FlushPendingComma();
                     int len = GetIdentifierLength(_input, index);
+                    // An Nd-leading key may be numeric-shaped ("١.٢", "١e+٢") or an identifier ("١a").
+                    // The longer reading wins. Only BMP digits (at most 3 UTF-8 bytes) start a numeric
+                    // key here, matching the string engine, which sees a supplementary digit as a surrogate.
+                    if (UnicodeDigitByteLength(_input, index) is > 0 and < 4) {
+                        len = Math.Max(len, GetNumericKeyLength(_input, index));
+                    }
                     ReadOnlySpan<byte> identifier = _input.Slice(index, len);
 
                     if (_options.QuoteUnquotedKeys) {
