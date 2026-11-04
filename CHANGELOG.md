@@ -51,6 +51,10 @@ changes, each patch is bug fixes only. Pin an exact minor in production.
   stays `[true]`); a single `/` does not (`[true/x]` is a string). An object key may
   mix ASCII digits with other decimal digits (`{1١:1}`). An apostrophe inside a URL
   stays in the URL (`https://example.com/O'Reilly`).
+- A comment or whitespace before `.` or `+` no longer glues number fragments together, so
+  `1/*x*/.2` and `1e/*x*/+2` throw instead of becoming `1.2` and `1e+2`, on both engines
+  and with `InsertMissingCommas` on or off. Numeric object keys accept supplementary-plane
+  decimal digits on the string engine as well as the UTF-8 engine (`{1𝟙:1}` is `{"1𝟙":1}`).
 - Inputs that used to throw now repair when the unquoted text is a value inside an
   object or array. `{a: hello}` becomes `{"a":"hello"}` and `{a: TrueStuff}` becomes
   `{"a":"TrueStuff"}`. The same text at the root, such as `I cannot help with that.`,

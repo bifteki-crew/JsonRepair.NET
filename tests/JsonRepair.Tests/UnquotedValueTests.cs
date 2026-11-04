@@ -66,6 +66,8 @@ public class UnquotedValueTests
     [InlineData("{1\u0661:1}", "{\"1\u0661\":1}")]
     [InlineData("{\u06611:1}", "{\"\u06611\":1}")]
     [InlineData("{\u0661a:1}", "{\"\u0661a\":1}")]
+    [InlineData("{1\U0001D7D9:1}", "{\"1\U0001D7D9\":1}")]
+    [InlineData("{12\U0001D7D9\u0661:1}", "{\"12\U0001D7D9\u0661\":1}")]
     [InlineData("[true/*x*/]", "[true]")]
     [InlineData("[false/*x*/]", "[false]")]
     [InlineData("[null/*x*/]", "[null]")]
@@ -231,6 +233,9 @@ public class UnquotedValueTests
     [InlineData("-/*x*/2")]
     [InlineData("1//c\n2")]
     [InlineData("1e/*x*/2")]
+    [InlineData("1/*x*/.2")]
+    [InlineData("1e/*x*/+2")]
+    [InlineData("1//c\n.2")]
     public void BothEngines_ShouldRejectRootNumbersJoinedByAComment(string input)
     {
         Action viaString = () => JsonRepairEngine.Repair(input);
@@ -241,6 +246,30 @@ public class UnquotedValueTests
         byte[] bytes = Encoding.UTF8.GetBytes(input);
         var writer = new ArrayBufferWriter<byte>();
         Action viaUtf8 = () => JsonRepairEngine.Repair(bytes, writer);
+        viaUtf8.Should().Throw<JsonRepairException>();
+        writer.WrittenCount.Should().Be(0);
+    }
+
+    // Without comma insertion nothing else separates the two numbers, so the gap itself must.
+    [Theory]
+    [InlineData("1/*x*/2")]
+    [InlineData("1/*x*/.2")]
+    [InlineData("1e/*x*/+2")]
+    [InlineData("1 .2")]
+    [InlineData("1e +2")]
+    [InlineData("[1/*x*/.2]")]
+    [InlineData("[1e/*x*/+2]")]
+    [InlineData("[1 .2]")]
+    public void BothEngines_ShouldNotFuseNumbersAcrossAGapWithoutCommaInsertion(string input)
+    {
+        var options = new JsonRepairOptions { InsertMissingCommas = false };
+
+        Action viaString = () => JsonRepairEngine.Repair(input, options);
+        viaString.Should().Throw<JsonRepairException>();
+
+        byte[] bytes = Encoding.UTF8.GetBytes(input);
+        var writer = new ArrayBufferWriter<byte>();
+        Action viaUtf8 = () => JsonRepairEngine.Repair(bytes, writer, options);
         viaUtf8.Should().Throw<JsonRepairException>();
         writer.WrittenCount.Should().Be(0);
     }

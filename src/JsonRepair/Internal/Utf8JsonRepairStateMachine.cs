@@ -297,12 +297,13 @@ internal ref struct Utf8JsonRepairStateMachine
                 }
 
                 // The string engine keeps one space between raw tokens. Without it, dropped
-                // whitespace fuses "n ull" into null and "fal\nse" into false.
-                if (separatedByWhitespace && IsAsciiLetterOrDigit(_lastWrittenByte) && IsAsciiLetterOrDigit(b)) {
+                // whitespace or a comment fuses "n ull" into null, "fal\nse" into false, and
+                // "1/*x*/.2" into 1.2. A pending comma is written first, so it is the last byte checked.
+                FlushPendingComma();
+                if (separatedByWhitespace && NeedsTokenSeparator(_lastWrittenByte, b)) {
                     WriteByte((byte)' ');
                 }
 
-                FlushPendingComma();
                 WriteByte(b);
                 index++;
             }
@@ -756,6 +757,14 @@ internal ref struct Utf8JsonRepairStateMachine
     private static bool IsAsciiLetterOrDigit(byte b)
     {
         return b is (>= (byte)'a' and <= (byte)'z') or (>= (byte)'A' and <= (byte)'Z') or (>= (byte)'0' and <= (byte)'9');
+    }
+
+    // Two raw tokens on either side of a gap need a space when joining them would form one
+    // token: letters and digits ("n ull"), or number characters ("1" and ".2", "1e" and "+2").
+    private static bool NeedsTokenSeparator(byte previous, byte next)
+    {
+        return (IsAsciiLetterOrDigit(previous) && IsAsciiLetterOrDigit(next))
+            || (IsNumberFusionChar(previous) && IsNumberFusionChar(next));
     }
 
     private static bool IsUrlChar(byte b)

@@ -275,7 +275,9 @@ internal ref struct JsonRepairStateMachine
                     }
                 }
 
-                if (separated && _sb.Length > 0 && IsAsciiLetterOrDigit(_sb[^1]) && IsAsciiLetterOrDigit(c)) {
+                // A comment between raw tokens keeps them apart. "n/*x*/ull" must not become null,
+                // and '.' or '+' must not glue numbers across it ("1/*x*/.2" is not 1.2).
+                if (separated && _sb.Length > 0 && NeedsTokenSeparator(_sb[^1], c)) {
                     _sb.Append(' ');
                 }
                 _sb.Append(c);
@@ -548,19 +550,46 @@ internal ref struct JsonRepairStateMachine
         int len = 0;
         while (start + len < span.Length) {
             char ch = span[start + len];
-            if (IsAsciiDigit(ch) || IsUnicodeDigit(ch) || ch is '.' or '-' or '+' or 'e' or 'E') {
+            if (IsAsciiDigit(ch) || ch is '.' or '-' or '+' or 'e' or 'E') {
                 len++;
+                continue;
             }
-            else {
+            int digitChars = UnicodeDigitCharLength(span, start + len);
+            if (digitChars == 0) {
                 break;
             }
+            len += digitChars;
         }
         return len;
+    }
+
+    // Decodes a whole rune, as the UTF-8 engine does, so a supplementary-plane Nd digit such as
+    // U+1D7D9 (a surrogate pair) counts as one digit instead of stopping at the high surrogate.
+    private static int UnicodeDigitCharLength(ReadOnlySpan<char> span, int index)
+    {
+        if ((uint)index >= (uint)span.Length) {
+            return 0;
+        }
+        if (Rune.DecodeFromUtf16(span[index..], out Rune rune, out int chars) != OperationStatus.Done) {
+            return 0;
+        }
+        if (rune.Value > '9' && Rune.IsDigit(rune)) {
+            return chars;
+        }
+        return 0;
     }
 
     private static bool IsNumberFusionChar(char c)
     {
         return c is (>= '0' and <= '9') or '.' or '-' or '+' or 'e' or 'E';
+    }
+
+    // Two raw tokens on either side of a comment need a space when joining them would form one
+    // token: letters and digits ("n ull"), or number characters ("1" and ".2", "1e" and "+2").
+    private static bool NeedsTokenSeparator(char previous, char next)
+    {
+        return (IsAsciiLetterOrDigit(previous) && IsAsciiLetterOrDigit(next))
+            || (IsNumberFusionChar(previous) && IsNumberFusionChar(next));
     }
 
     private static int GetIdentifierLength(ReadOnlySpan<char> span, int start)
